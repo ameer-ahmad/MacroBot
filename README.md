@@ -31,6 +31,13 @@ npm run dev
    - Paste contents of [`supabase/migrations/20250625000000_initial_schema.sql`](supabase/migrations/20250625000000_initial_schema.sql)
    - Click **Run**
 4. Restart the dev server and check **Settings** → Supabase should show **Connected**.
+5. In Supabase **Authentication → Providers**, ensure **Email** is enabled. Disable email confirmation for local dev, or users must confirm via email before signing in.
+
+### Auth (Phase 3)
+
+- `/login` and `/signup` for email + password auth
+- New users are guided through `/onboarding` to set daily macro goals
+- All app routes require sign-in; goals are stored in `profiles`
 
 ### Schema
 

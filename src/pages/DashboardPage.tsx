@@ -1,24 +1,43 @@
 import { Flame, Beef, Wheat, Droplets, Leaf } from 'lucide-react'
+import { useProfile } from '@/hooks/useProfile'
 
-const macroCards = [
-  { label: 'Calories', value: '0', goal: '2,000', icon: Flame, color: 'text-primary' },
-  { label: 'Protein', value: '0g', goal: '150g', icon: Beef, color: 'text-protein' },
-  { label: 'Carbs', value: '0g', goal: '200g', icon: Wheat, color: 'text-carbs' },
-  { label: 'Fats', value: '0g', goal: '65g', icon: Droplets, color: 'text-fats' },
-  { label: 'Fiber', value: '0g', goal: '30g', icon: Leaf, color: 'text-fiber' },
-] as const
+function formatGoal(value: number, suffix = '') {
+  return `${Math.round(value).toLocaleString()}${suffix}`
+}
 
 export function DashboardPage() {
+  const { data: profile, isLoading } = useProfile()
+
+  const goals = {
+    calories: profile?.calorie_goal ?? 2000,
+    protein: profile?.protein_goal ?? 150,
+    carbs: profile?.carbs_goal ?? 200,
+    fats: profile?.fats_goal ?? 65,
+    fiber: profile?.fiber_goal ?? 30,
+  }
+
+  const macroCards = [
+    { label: 'Calories', value: '0', goal: formatGoal(goals.calories), icon: Flame, color: 'text-primary' },
+    { label: 'Protein', value: '0g', goal: `${formatGoal(goals.protein)}g`, icon: Beef, color: 'text-protein' },
+    { label: 'Carbs', value: '0g', goal: `${formatGoal(goals.carbs)}g`, icon: Wheat, color: 'text-carbs' },
+    { label: 'Fats', value: '0g', goal: `${formatGoal(goals.fats)}g`, icon: Droplets, color: 'text-fats' },
+    { label: 'Fiber', value: '0g', goal: `${formatGoal(goals.fiber)}g`, icon: Leaf, color: 'text-fiber' },
+  ] as const
+
   return (
     <div className="space-y-6">
       <section>
-        <h2 className="text-2xl font-bold text-foreground">Today</h2>
+        <h2 className="text-2xl font-bold text-foreground">
+          {profile?.name ? `Hi, ${profile.name}` : 'Today'}
+        </h2>
         <p className="text-sm text-muted">Track your daily nutrition goals</p>
       </section>
 
       <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
         <p className="text-sm font-medium text-muted">Calories remaining</p>
-        <p className="mt-1 text-4xl font-bold text-foreground">2,000</p>
+        <p className="mt-1 text-4xl font-bold text-foreground">
+          {isLoading ? '…' : formatGoal(goals.calories)}
+        </p>
         <div className="mt-4 h-2 overflow-hidden rounded-full bg-border">
           <div className="h-full w-0 rounded-full bg-primary transition-all duration-300" />
         </div>
