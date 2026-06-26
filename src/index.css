@@ -1,0 +1,61 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+
+  --color-background: #f8fafc;
+  --color-foreground: #0f172a;
+  --color-muted: #64748b;
+  --color-border: #e2e8f0;
+  --color-card: #ffffff;
+  --color-primary: #059669;
+  --color-primary-foreground: #ffffff;
+  --color-accent: #d1fae5;
+  --color-protein: #3b82f6;
+  --color-carbs: #f59e0b;
+  --color-fats: #ef4444;
+  --color-fiber: #8b5cf6;
+}
+
+.dark {
+  --color-background: #0f172a;
+  --color-foreground: #f8fafc;
+  --color-muted: #94a3b8;
+  --color-border: #334155;
+  --color-card: #1e293b;
+  --color-primary: #34d399;
+  --color-primary-foreground: #0f172a;
+  --color-accent: #064e3b;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    margin: 0;
+    min-height: 100dvh;
+  }
+
+  #root {
+    min-height: 100dvh;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
