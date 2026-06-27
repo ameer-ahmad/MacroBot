@@ -5,6 +5,7 @@ import { checkSupabaseConnection } from '@/lib/supabase'
 import { updateProfile, queryKeys } from '@/lib/api'
 import { useAuth } from '@/providers/AuthProvider'
 import { useProfile } from '@/hooks/useProfile'
+import { GoalCalculator } from '@/components/profile/GoalCalculator'
 import type { ProfileUpdate, UnitSystem } from '@/types/database'
 
 const statusLabels = {
@@ -19,6 +20,7 @@ export function SettingsPage() {
   const { data: profile, isLoading: profileLoading } = useProfile()
   const queryClient = useQueryClient()
   const [editing, setEditing] = useState(false)
+  const [showCalc, setShowCalc] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const [name, setName] = useState('')
@@ -58,6 +60,7 @@ export function SettingsPage() {
     setCarbsGoal(String(profile.carbs_goal))
     setFatsGoal(String(profile.fats_goal))
     setFiberGoal(String(profile.fiber_goal))
+    setShowCalc(false)
     setEditing(true)
     setError(null)
   }
@@ -179,6 +182,32 @@ export function SettingsPage() {
                   {option}
                 </button>
               ))}
+            </div>
+
+            <div className="rounded-xl border border-border bg-background p-3">
+              <button
+                type="button"
+                onClick={() => setShowCalc((v) => !v)}
+                className="cursor-pointer text-sm font-medium text-primary transition-colors duration-200 hover:opacity-80"
+              >
+                {showCalc ? 'Hide calculator' : 'Calculate from body stats'}
+              </button>
+              {showCalc && (
+                <div className="mt-3">
+                  <GoalCalculator
+                    units={units}
+                    applyLabel="Use these goals"
+                    onApply={(goals) => {
+                      setCalorieGoal(String(goals.calorie_goal))
+                      setProteinGoal(String(goals.protein_goal))
+                      setCarbsGoal(String(goals.carbs_goal))
+                      setFatsGoal(String(goals.fats_goal))
+                      setFiberGoal(String(goals.fiber_goal))
+                      setShowCalc(false)
+                    }}
+                  />
+                </div>
+              )}
             </div>
             {(
               [
