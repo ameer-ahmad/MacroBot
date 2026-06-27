@@ -15,12 +15,14 @@ export function FoodPreview({
   food,
   onClose,
   onSave,
+  onAddToLog,
   saving,
   saved,
 }: {
   food: FoodSearchResult
   onClose: () => void
   onSave: () => void
+  onAddToLog?: () => void
   saving: boolean
   saved: boolean
 }) {
@@ -78,7 +80,18 @@ export function FoodPreview({
             ))}
           </div>
 
-          {!isSaved && (
+          <div className="space-y-2">
+            {onAddToLog && (
+              <button
+                type="button"
+                onClick={onAddToLog}
+                className="w-full cursor-pointer rounded-xl border border-primary bg-accent px-4 py-3 font-semibold text-primary transition-colors duration-200 hover:bg-primary hover:text-primary-foreground"
+              >
+                Add to log
+              </button>
+            )}
+
+            {!isSaved && (
             <button
               type="button"
               onClick={onSave}
@@ -92,6 +105,7 @@ export function FoodPreview({
           {isSaved && (
             <p className="text-center text-sm text-primary">Already in your food library</p>
           )}
+          </div>
         </div>
       </div>
     </div>

@@ -120,6 +120,32 @@ export async function deleteLogEntry(id: string): Promise<void> {
   if (error) throw error
 }
 
+export async function updateLogEntry(
+  id: string,
+  updates: {
+    quantity?: number
+    meal?: MealType
+    calories?: number
+    protein_g?: number
+    carbs_g?: number
+    fats_g?: number
+    fiber_g?: number
+    name?: string
+    serving_unit?: string
+  },
+): Promise<LogEntry> {
+  const supabase = getSupabase()
+  const { data, error } = await supabase
+    .from('log_entries')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
 export function sumMacros(entries: Pick<LogEntry, keyof Macros>[]) {
   return entries.reduce(
     (totals, entry) => ({

@@ -5,9 +5,11 @@ import { BarcodeNotFound } from '@/components/food/BarcodeNotFound'
 import { BarcodeScanner } from '@/components/food/BarcodeScanner'
 import { FoodPreview } from '@/components/food/FoodPreview'
 import { FoodResultCard } from '@/components/food/FoodResultCard'
+import { AddLogEntryModal } from '@/components/log/AddLogEntryModal'
 import { useBarcodeLookup } from '@/hooks/useBarcodeLookup'
 import { useDebounce } from '@/hooks/useDebounce'
 import { createFood, queryKeys } from '@/lib/api'
+import { toDateString } from '@/lib/macros'
 import {
   flattenSearchResults,
   searchFoods,
@@ -23,6 +25,7 @@ export function SearchPage() {
   const [selected, setSelected] = useState<FoodSearchResult | null>(null)
   const [savedKey, setSavedKey] = useState<string | null>(null)
   const [scannerOpen, setScannerOpen] = useState(false)
+  const [addToLogFood, setAddToLogFood] = useState<FoodSearchResult | null>(null)
 
   const { lookup, loading: barcodeLoading, error: barcodeError, lastBarcode, clearError } =
     useBarcodeLookup()
@@ -220,8 +223,21 @@ export function SearchPage() {
           food={selected}
           onClose={closePreview}
           onSave={() => saveMutation.mutate(selected)}
+          onAddToLog={() => {
+            setAddToLogFood(selected)
+            closePreview()
+          }}
           saving={saveMutation.isPending}
           saved={savedKey === selected.key || selected.key.startsWith('saved:')}
+        />
+      )}
+
+      {addToLogFood && (
+        <AddLogEntryModal
+          open
+          date={toDateString()}
+          initialFood={addToLogFood}
+          onClose={() => setAddToLogFood(null)}
         />
       )}
     </div>

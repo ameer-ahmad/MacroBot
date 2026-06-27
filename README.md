@@ -28,6 +28,14 @@ On the **Search** tab, tap **Scan barcode with camera** to scan a product. The a
 
 Camera access requires HTTPS or `localhost`. If permission is denied, use manual entry instead.
 
+## Food logging (Phase 6)
+
+- **Log** tab: daily food log grouped by meal (breakfast, lunch, dinner, snacks)
+- Add from **saved foods** or **manual entry** with quantity and meal
+- Tap an entry to edit quantity/meal or delete
+- **Date navigation**: prev/next day, jump to today
+- **Dashboard** shows live totals vs your daily goals
+
 ## Getting started
 
 ```bash

@@ -1,5 +1,7 @@
 import type { FoodSource } from '@/types/database'
 
+export type { Macros } from '@/types/database'
+
 /** Normalized food shape shared across USDA, Open Food Facts, and the saved library. */
 export interface FoodSearchResult {
   /** Composite key for UI lists, e.g. usda:12345 or off:0123456789012 */
