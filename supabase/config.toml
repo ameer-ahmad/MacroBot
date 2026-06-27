@@ -28,3 +28,7 @@ enable_signup = true
 [auth.email]
 enable_signup = true
 enable_confirmations = false
+
+# AI meal/label analysis proxy. Requires a signed-in user.
+[functions.ai-meal]
+verify_jwt = true

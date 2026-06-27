@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Camera, Loader2, PencilLine, Search, X } from 'lucide-react'
+import { ArrowLeft, Camera, Loader2, PencilLine, Search, Sparkles, X } from 'lucide-react'
 import { BarcodeNotFound } from '@/components/food/BarcodeNotFound'
 import { BarcodeScanner } from '@/components/food/BarcodeScanner'
 import { FoodResultCard } from '@/components/food/FoodResultCard'
+import { AiAssistant } from '@/components/log/AiAssistant'
 import { useBarcodeLookup } from '@/hooks/useBarcodeLookup'
 import { useDebounce } from '@/hooks/useDebounce'
 import { createLogEntry, MEAL_LABELS, MEAL_ORDER, queryKeys } from '@/lib/api'
@@ -14,7 +15,7 @@ import type { MealType } from '@/types/database'
 import type { FoodSearchResult } from '@/types/food'
 import { formatMacro } from '@/types/food'
 
-type Step = 'search' | 'manual' | 'configure'
+type Step = 'search' | 'manual' | 'configure' | 'ai'
 
 const inputClass =
   'w-full rounded-xl border border-border bg-background px-3 py-2.5 text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20'
@@ -162,8 +163,9 @@ export function AddFoodFlow({
   }
 
   const recent = results?.recent ?? []
+  const saved = results?.saved ?? []
   const usda = results?.usda ?? []
-  const hasResults = recent.length > 0 || usda.length > 0
+  const hasResults = recent.length > 0 || saved.length > 0 || usda.length > 0
 
   const mealSelector = (
     <div>
@@ -211,7 +213,13 @@ export function AddFoodFlow({
               </button>
             )}
             <h3 id="add-food-title" className="text-lg font-semibold text-foreground">
-              {step === 'configure' ? 'Add to log' : step === 'manual' ? 'Manual entry' : 'Add food'}
+              {step === 'configure'
+                ? 'Add to log'
+                : step === 'manual'
+                  ? 'Manual entry'
+                  : step === 'ai'
+                    ? 'AI assistant'
+                    : 'Add food'}
             </h3>
           </div>
           <button
@@ -227,7 +235,7 @@ export function AddFoodFlow({
         {step === 'search' && (
           <div className="flex flex-1 flex-col overflow-hidden">
             <div className="space-y-3 px-5 py-4">
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
                   onClick={() => {
@@ -243,6 +251,17 @@ export function AddFoodFlow({
                     <Camera className="h-4 w-4" aria-hidden="true" />
                   )}
                   Scan
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError(null)
+                    setStep('ai')
+                  }}
+                  className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-border px-3 py-2.5 text-sm font-medium text-foreground transition-colors duration-200 hover:border-primary hover:bg-accent"
+                >
+                  <Sparkles className="h-4 w-4" aria-hidden="true" />
+                  AI
                 </button>
                 <button
                   type="button"
@@ -301,6 +320,17 @@ export function AddFoodFlow({
                     {query.trim() ? 'From your history' : 'Recently logged'}
                   </h4>
                   {recent.map((food) => (
+                    <FoodResultCard key={food.key} food={food} onSelect={selectFood} />
+                  ))}
+                </section>
+              )}
+
+              {saved.length > 0 && (
+                <section className="space-y-2">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted">
+                    Your library
+                  </h4>
+                  {saved.map((food) => (
                     <FoodResultCard key={food.key} food={food} onSelect={selectFood} />
                   ))}
                 </section>
@@ -454,6 +484,10 @@ export function AddFoodFlow({
               </button>
             </div>
           </form>
+        )}
+
+        {step === 'ai' && (
+          <AiAssistant date={date} initialMeal={meal} onClose={onClose} />
         )}
       </div>
 

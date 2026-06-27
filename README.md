@@ -12,10 +12,11 @@ A PWA for tracking calories and macros (protein, carbs, fats, fiber).
 
 ## Food logging
 
-The **Log** tab is the single place to add food. It shows your daily log grouped by meal (breakfast, lunch, dinner, snacks). Tap **Add** on any meal to open the add flow, which offers three ways to add food:
+The **Log** tab is the single place to add food. It shows your daily log grouped by meal (breakfast, lunch, dinner, snacks). Tap **Add** on any meal to open the add flow, which offers several ways to add food:
 
 - **Search** — results show your previously logged foods first (ordered by recency), then **USDA FoodData Central** items you haven't logged before. All results match what you type.
 - **Scan** — camera barcode scanning via Open Food Facts.
+- **AI** — describe a meal in plain language (e.g. _"4 eggs cooked in 5g of butter"_) and/or attach a food photo; the assistant estimates each item's macros for you to review and log. A **Nutrition label** tab reads a photo of a label and saves that food to your library.
 - **Manual** — enter a name and macros directly.
 
 After choosing a food, set the quantity and meal, then add it to the log. Tap any logged entry to edit quantity/meal or delete it.
@@ -82,6 +83,26 @@ supabase db push
 npm run supabase:types
 ```
 
+## AI features setup
+
+The AI meal description, food-photo, and nutrition-label features call OpenAI
+through the `ai-meal` [Supabase Edge Function](https://supabase.com/docs/guides/functions),
+so the OpenAI key stays server-side and is never shipped to the browser. The
+function requires a signed-in user (`verify_jwt = true`).
+
+```bash
+# 1. Store your OpenAI key as a function secret (one time)
+supabase secrets set OPENAI_API_KEY=sk-...
+
+# 2. Deploy the function
+supabase functions deploy ai-meal
+```
+
+The function uses OpenAI `gpt-4o-mini` with vision + structured (JSON schema)
+output. Uploaded photos are downscaled in the browser before upload to limit
+payload size and cost. Until the function is deployed, the rest of the app
+(search, scan, manual entry) works as normal.
+
 ## Environment variables
 
 | Variable | Description |
@@ -89,6 +110,7 @@ npm run supabase:types
 | `VITE_SUPABASE_URL` | Supabase project URL |
 | `VITE_SUPABASE_ANON_KEY` | Supabase anonymous key |
 | `VITE_USDA_API_KEY` | USDA FoodData Central API key |
+| `OPENAI_API_KEY` | OpenAI key — set as a **Supabase function secret**, not a `VITE_` var (see AI features setup) |
 
 ## Scripts
 
