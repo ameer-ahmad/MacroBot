@@ -45,10 +45,17 @@ const mealSchema = {
           additionalProperties: false,
           properties: {
             name: { type: 'string', description: 'Short food name, e.g. "Eggs".' },
-            serving_description: {
+            amount: {
+              type: 'number',
+              description: 'Numeric amount consumed, in terms of "unit".',
+            },
+            unit: {
               type: 'string',
               description:
-                'Human-readable amount consumed, e.g. "4 large eggs" or "5 g butter".',
+                'Unit for "amount". Use a weight/volume unit ("g", "ml") with the ' +
+                'numeric weight when a weight is given or implied; a singular count ' +
+                'noun ("egg", "slice", "strip") with the count when the food is ' +
+                'counted; or "serving" with amount 1 when it cannot be quantified.',
             },
             calories: { type: 'number' },
             protein_g: { type: 'number' },
@@ -58,7 +65,8 @@ const mealSchema = {
           },
           required: [
             'name',
-            'serving_description',
+            'amount',
+            'unit',
             'calories',
             'protein_g',
             'carbs_g',
@@ -119,11 +127,16 @@ const labelSchema = {
 const mealSystemPrompt =
   'You are a meticulous nutrition expert. Estimate the macronutrients for the ' +
   'food(s) the user describes and/or that appear in the provided photo. Return ' +
-  'one item per distinct food. All macro values are the TOTAL for the amount ' +
-  'actually consumed (not per 100g and not per serving). Use realistic ' +
-  'USDA-based estimates. When the user gives explicit weights or counts, honor ' +
-  'them. When a photo is provided with a stated total weight, distribute that ' +
-  'weight across the visible components. Never return zero items.'
+  'one item per distinct food. For each item set "amount" and "unit" to describe ' +
+  'how much was eaten, and make the macro values the TOTAL for that amount (not ' +
+  'per 100g and not per serving). Use a weight/volume unit ("g" or "ml") with the ' +
+  'numeric weight whenever a weight is given or can be reasonably inferred (e.g. ' +
+  '"100g of cooked chicken breast" -> amount 100, unit "g"). Use a singular count ' +
+  'noun with the count for countable foods (e.g. "4 eggs" -> amount 4, unit ' +
+  '"egg"). Only when the quantity truly cannot be expressed as a weight or count ' +
+  '(e.g. "a beef burger") use amount 1 and unit "serving". Use realistic ' +
+  'USDA-based estimates. When a photo is provided with a stated total weight, ' +
+  'distribute that weight across the visible components. Never return zero items.'
 
 const labelSystemPrompt =
   'You are an OCR and nutrition extraction expert. Read the nutrition facts ' +

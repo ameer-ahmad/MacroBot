@@ -2,7 +2,6 @@ import type { Food, FoodInsert, LogEntry } from '@/types/database'
 import type { FoodSearchResult } from '@/types/food'
 import { roundMacro } from '@/types/food'
 import { fetchFoods, fetchRecentLogEntries } from '@/lib/api'
-import { macrosPerUnit } from '@/lib/macros'
 import { isUsdaConfigured, searchUsdaFoods } from '@/lib/usda'
 
 export function foodToSearchResult(food: Food): FoodSearchResult {
@@ -41,10 +40,13 @@ export function searchResultToFoodInsert(result: FoodSearchResult): Omit<FoodIns
   }
 }
 
-/** Convert a previously logged entry into a per-serving food result. */
+/** Convert a previously logged entry into a food result for re-adding. */
 export function logEntryToRecentFood(entry: LogEntry): FoodSearchResult {
-  const perServing = macrosPerUnit(entry)
   const identity = entry.food_id ?? entry.name.toLowerCase()
+
+  // Keep the last logged amount as the basis (servingSize) with its totals, so
+  // re-adding defaults to that amount and still scales to any new amount.
+  const servingSize = Number(entry.quantity) || 1
 
   return {
     key: `recent:${identity}`,
@@ -53,15 +55,15 @@ export function logEntryToRecentFood(entry: LogEntry): FoodSearchResult {
     foodId: entry.food_id,
     name: entry.name,
     brand: null,
-    servingSize: 1,
+    servingSize,
     servingUnit: entry.serving_unit,
     barcode: null,
     recent: true,
-    calories: roundMacro(perServing.calories, 0),
-    protein_g: roundMacro(perServing.protein_g),
-    carbs_g: roundMacro(perServing.carbs_g),
-    fats_g: roundMacro(perServing.fats_g),
-    fiber_g: roundMacro(perServing.fiber_g),
+    calories: roundMacro(Number(entry.calories), 0),
+    protein_g: roundMacro(Number(entry.protein_g)),
+    carbs_g: roundMacro(Number(entry.carbs_g)),
+    fats_g: roundMacro(Number(entry.fats_g)),
+    fiber_g: roundMacro(Number(entry.fiber_g)),
   }
 }
 

@@ -34,6 +34,77 @@ export function shiftDate(dateStr: string, days: number): string {
   return toDateString(date)
 }
 
+/** Units that are measured by weight/volume and can be scaled by an exact amount. */
+const WEIGHT_UNITS = new Set([
+  'g',
+  'gram',
+  'grams',
+  'mg',
+  'kg',
+  'ml',
+  'milliliter',
+  'milliliters',
+  'millilitre',
+  'millilitres',
+  'l',
+  'oz',
+])
+
+/** Units treated as generic servings (not a measurable weight or specific count). */
+const GENERIC_SERVING_UNITS = new Set([
+  '',
+  'serving',
+  'servings',
+  'portion',
+  'portions',
+])
+
+/** True when a serving unit can be logged by an exact amount (e.g. grams). */
+export function isWeightUnit(unit: string | null | undefined): boolean {
+  if (!unit) return false
+  return WEIGHT_UNITS.has(unit.trim().toLowerCase())
+}
+
+/** True when the unit is a plain serving/portion with no meaningful amount. */
+export function isGenericServingUnit(unit: string | null | undefined): boolean {
+  return GENERIC_SERVING_UNITS.has((unit ?? '').trim().toLowerCase())
+}
+
+/** Label + input constraints for an amount/quantity field based on the unit. */
+export function amountFieldConfig(unit: string | null | undefined): {
+  label: string
+  min: string
+  step: string
+} {
+  if (isWeightUnit(unit)) {
+    return { label: `Amount (${unit})`, min: '0', step: 'any' }
+  }
+  if (isGenericServingUnit(unit)) {
+    return { label: 'Quantity (servings)', min: '0.25', step: '0.25' }
+  }
+  return { label: `Quantity (${unit})`, min: '0', step: 'any' }
+}
+
+/**
+ * Macros for a given amount of a food. `amount` is interpreted in the food's
+ * serving unit (e.g. grams, eggs, or servings) and macros scale by
+ * `amount / servingSize`, where servingSize is the basis the macros describe.
+ */
+export function macrosForAmount(
+  food: Pick<FoodSearchResult, keyof Macros | 'servingSize' | 'servingUnit'>,
+  amount: number,
+): Macros {
+  const base: Macros = {
+    calories: Number(food.calories),
+    protein_g: Number(food.protein_g),
+    carbs_g: Number(food.carbs_g),
+    fats_g: Number(food.fats_g),
+    fiber_g: Number(food.fiber_g),
+  }
+  const factor = amount / (Number(food.servingSize) || 1)
+  return scaleMacros(base, factor)
+}
+
 export function scaleMacros(macros: Macros, quantity: number): Macros {
   return {
     calories: roundMacro(macros.calories * quantity, 0),

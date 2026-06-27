@@ -3,7 +3,10 @@ import { getSupabase } from '@/lib/supabase'
 /** A single food parsed from a meal description or photo (macros are totals consumed). */
 export interface AiMealItem {
   name: string
-  serving_description: string
+  /** Numeric amount consumed, expressed in `unit`. */
+  amount: number
+  /** Unit for `amount`: a weight unit ("g"/"ml"), a count noun ("egg"), or "serving". */
+  unit: string
   calories: number
   protein_g: number
   carbs_g: number

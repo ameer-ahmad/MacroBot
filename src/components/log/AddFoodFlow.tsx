@@ -9,7 +9,7 @@ import { useBarcodeLookup } from '@/hooks/useBarcodeLookup'
 import { useDebounce } from '@/hooks/useDebounce'
 import { createLogEntry, MEAL_LABELS, MEAL_ORDER, queryKeys } from '@/lib/api'
 import { searchLoggableFoods } from '@/lib/foodSearch'
-import { scaleMacros } from '@/lib/macros'
+import { amountFieldConfig, macrosForAmount, scaleMacros } from '@/lib/macros'
 import { fetchUsdaFood, isUsdaConfigured } from '@/lib/usda'
 import type { MealType } from '@/types/database'
 import type { FoodSearchResult } from '@/types/food'
@@ -75,21 +75,21 @@ export function AddFoodFlow({
 
   async function selectFood(food: FoodSearchResult) {
     setError(null)
+    let chosen = food
     // USDA search results can lack macros until the detail endpoint is queried.
     if (food.source === 'usda' && food.calories === 0 && isUsdaConfigured()) {
       try {
         setResolvingFood(true)
-        const detailed = await fetchUsdaFood(food.externalId)
-        setSelectedFood(detailed)
+        chosen = await fetchUsdaFood(food.externalId)
       } catch {
-        setSelectedFood(food)
+        chosen = food
       } finally {
         setResolvingFood(false)
       }
-    } else {
-      setSelectedFood(food)
     }
-    setQuantity('1')
+    setSelectedFood(chosen)
+    // Default to the food's serving size (grams, count, or 1 serving).
+    setQuantity(String(chosen.servingSize || 1))
     setStep('configure')
   }
 
@@ -107,24 +107,16 @@ export function AddFoodFlow({
     if (!selectedFood) return
     setError(null)
 
-    const qty = Number(quantity) || 1
-    const macros = scaleMacros(
-      {
-        calories: selectedFood.calories,
-        protein_g: selectedFood.protein_g,
-        carbs_g: selectedFood.carbs_g,
-        fats_g: selectedFood.fats_g,
-        fiber_g: selectedFood.fiber_g,
-      },
-      qty,
-    )
+    const amount = Number(quantity) || selectedFood.servingSize || 1
+    const macros = macrosForAmount(selectedFood, amount)
 
     mutation.mutate({
       logged_date: date,
       meal,
       food_id: selectedFood.foodId ?? null,
       name: selectedFood.name,
-      quantity: qty,
+      // For weight foods we store the exact amount + unit so edits can rescale.
+      quantity: amount,
       serving_unit: selectedFood.servingUnit,
       ...macros,
     })
@@ -388,20 +380,28 @@ export function AddFoodFlow({
 
               {mealSelector}
 
-              <label className="block text-sm">
-                <span className="font-medium text-foreground">Quantity (servings)</span>
-                <input
-                  type="number"
-                  min="0.25"
-                  step="0.25"
-                  value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
-                  className={`mt-1 ${inputClass}`}
-                  required
-                />
-              </label>
+              {(() => {
+                const field = amountFieldConfig(selectedFood.servingUnit)
+                return (
+                  <label className="block text-sm">
+                    <span className="font-medium text-foreground">{field.label}</span>
+                    <input
+                      type="number"
+                      min={field.min}
+                      step={field.step}
+                      value={quantity}
+                      onChange={(e) => setQuantity(e.target.value)}
+                      className={`mt-1 ${inputClass}`}
+                      required
+                    />
+                    <span className="mt-1 block text-xs text-muted">
+                      Nutrition scales with the amount you enter.
+                    </span>
+                  </label>
+                )
+              })()}
 
-              <ConfigurePreview food={selectedFood} quantity={Number(quantity) || 1} />
+              <ConfigurePreview food={selectedFood} amount={Number(quantity) || 0} />
             </div>
 
             <div className="border-t border-border px-5 py-4">
@@ -498,17 +498,8 @@ export function AddFoodFlow({
   )
 }
 
-function ConfigurePreview({ food, quantity }: { food: FoodSearchResult; quantity: number }) {
-  const totals = scaleMacros(
-    {
-      calories: food.calories,
-      protein_g: food.protein_g,
-      carbs_g: food.carbs_g,
-      fats_g: food.fats_g,
-      fiber_g: food.fiber_g,
-    },
-    quantity,
-  )
+function ConfigurePreview({ food, amount }: { food: FoodSearchResult; amount: number }) {
+  const totals = macrosForAmount(food, amount)
 
   return (
     <div className="rounded-xl border border-border bg-background px-3 py-2.5 text-sm">

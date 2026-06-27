@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Trash2, X } from 'lucide-react'
 import { deleteLogEntry, MEAL_LABELS, MEAL_ORDER, queryKeys, updateLogEntry } from '@/lib/api'
-import { macrosPerUnit, scaleMacros } from '@/lib/macros'
+import { amountFieldConfig, macrosPerUnit, scaleMacros } from '@/lib/macros'
 import type { LogEntry, MealType } from '@/types/database'
 import { formatMacro } from '@/types/food'
 
@@ -23,6 +23,7 @@ export function EditLogEntryModal({
   const [quantity, setQuantity] = useState(String(entry.quantity))
   const [error, setError] = useState<string | null>(null)
 
+  const field = amountFieldConfig(entry.serving_unit)
   const perUnit = macrosPerUnit(entry)
   const qty = Number(quantity) || 1
   const preview = scaleMacros(perUnit, qty)
@@ -96,15 +97,18 @@ export function EditLogEntryModal({
           </div>
 
           <label className="block text-sm">
-            <span className="font-medium text-foreground">Quantity (servings)</span>
+            <span className="font-medium text-foreground">{field.label}</span>
             <input
               type="number"
-              min="0.25"
-              step="0.25"
+              min={field.min}
+              step={field.step}
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
               className={`mt-1 ${inputClass}`}
             />
+            <span className="mt-1 block text-xs text-muted">
+              Nutrition scales with the amount you enter.
+            </span>
           </label>
 
           <p className="text-sm text-muted">

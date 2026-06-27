@@ -125,6 +125,41 @@ function ImagePicker({
   )
 }
 
+type Macros5 = {
+  calories: number
+  protein_g: number
+  carbs_g: number
+  fats_g: number
+  fiber_g: number
+}
+
+/** Editable AI item that remembers a per-unit basis so amount edits rescale macros. */
+type EditMealItem = AiMealItem & { perUnit: Macros5 }
+
+const MACRO_FIELDS = [
+  'calories',
+  'protein_g',
+  'carbs_g',
+  'fats_g',
+  'fiber_g',
+] as const
+
+function toEditItem(item: AiMealItem): EditMealItem {
+  const amt = Number(item.amount) || 0
+  const per = (v: number) => (amt > 0 ? Number(v) / amt : Number(v) || 0)
+  return {
+    ...item,
+    amount: amt,
+    perUnit: {
+      calories: per(item.calories),
+      protein_g: per(item.protein_g),
+      carbs_g: per(item.carbs_g),
+      fats_g: per(item.fats_g),
+      fiber_g: per(item.fiber_g),
+    },
+  }
+}
+
 function MealTab({
   date,
   initialMeal,
@@ -139,19 +174,21 @@ function MealTab({
   const [text, setText] = useState('')
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null)
   const [analyzing, setAnalyzing] = useState(false)
-  const [items, setItems] = useState<AiMealItem[] | null>(null)
+  const [items, setItems] = useState<EditMealItem[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const logMutation = useMutation({
-    mutationFn: async (toLog: AiMealItem[]) => {
+    mutationFn: async (toLog: EditMealItem[]) => {
       for (const item of toLog) {
+        const amount = Number(item.amount) || 1
         await createLogEntry({
           logged_date: date,
           meal,
           food_id: null,
           name: item.name,
-          quantity: 1,
-          serving_unit: item.serving_description || 'serving',
+          // Store the amount + unit so it can be re-logged at a different amount later.
+          quantity: amount,
+          serving_unit: item.unit?.trim() || 'serving',
           calories: round(item.calories),
           protein_g: round(item.protein_g),
           carbs_g: round(item.carbs_g),
@@ -195,7 +232,7 @@ function MealTab({
         setError('Could not identify any foods. Try adding more detail.')
         return
       }
-      setItems(result)
+      setItems(result.map(toEditItem))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Analysis failed.')
     } finally {
@@ -203,9 +240,49 @@ function MealTab({
     }
   }
 
-  function updateItem(index: number, patch: Partial<AiMealItem>) {
+  function updateItem(index: number, patch: Partial<EditMealItem>) {
     setItems((prev) =>
       prev ? prev.map((it, i) => (i === index ? { ...it, ...patch } : it)) : prev,
+    )
+  }
+
+  // Changing the amount rescales macros from the fixed per-unit basis.
+  function updateAmount(index: number, value: string) {
+    const amount = Number(value) || 0
+    setItems((prev) =>
+      prev
+        ? prev.map((it, i) =>
+            i === index
+              ? {
+                  ...it,
+                  amount,
+                  calories: round(it.perUnit.calories * amount),
+                  protein_g: round(it.perUnit.protein_g * amount),
+                  carbs_g: round(it.perUnit.carbs_g * amount),
+                  fats_g: round(it.perUnit.fats_g * amount),
+                  fiber_g: round(it.perUnit.fiber_g * amount),
+                }
+              : it,
+          )
+        : prev,
+    )
+  }
+
+  // Editing a macro directly updates its per-unit basis for future amount changes.
+  function updateMacro(index: number, field: (typeof MACRO_FIELDS)[number], value: string) {
+    const v = Number(value) || 0
+    setItems((prev) =>
+      prev
+        ? prev.map((it, i) => {
+            if (i !== index) return it
+            const amt = Number(it.amount) || 0
+            return {
+              ...it,
+              [field]: v,
+              perUnit: { ...it.perUnit, [field]: amt > 0 ? v / amt : it.perUnit[field] },
+            }
+          })
+        : prev,
     )
   }
 
@@ -323,15 +400,34 @@ function MealTab({
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
-                <input
-                  value={item.serving_description}
-                  onChange={(e) =>
-                    updateItem(index, { serving_description: e.target.value })
-                  }
-                  placeholder="Amount"
-                  className="w-full rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs text-muted focus:border-primary focus:outline-none"
-                  aria-label="Amount"
-                />
+                <div className="flex items-end gap-2">
+                  <label className="block">
+                    <span className="mb-0.5 block text-[10px] font-medium uppercase text-muted">
+                      Amount
+                    </span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="any"
+                      value={item.amount}
+                      onChange={(e) => updateAmount(index, e.target.value)}
+                      className="w-20 rounded-lg border border-border bg-card px-2.5 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none"
+                      aria-label="Amount"
+                    />
+                  </label>
+                  <label className="block flex-1">
+                    <span className="mb-0.5 block text-[10px] font-medium uppercase text-muted">
+                      Unit
+                    </span>
+                    <input
+                      value={item.unit}
+                      onChange={(e) => updateItem(index, { unit: e.target.value })}
+                      placeholder="g, egg, serving…"
+                      className="w-full rounded-lg border border-border bg-card px-2.5 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none"
+                      aria-label="Unit"
+                    />
+                  </label>
+                </div>
                 <div className="grid grid-cols-5 gap-1.5">
                   {(
                     [
@@ -351,11 +447,7 @@ function MealTab({
                         min="0"
                         step="any"
                         value={item[field]}
-                        onChange={(e) =>
-                          updateItem(index, {
-                            [field]: Number(e.target.value) || 0,
-                          } as Partial<AiMealItem>)
-                        }
+                        onChange={(e) => updateMacro(index, field, e.target.value)}
                         className="w-full rounded-lg border border-border bg-card px-1.5 py-1.5 text-center text-sm text-foreground focus:border-primary focus:outline-none"
                       />
                     </label>
