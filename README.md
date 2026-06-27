@@ -8,7 +8,19 @@ A PWA for tracking calories and macros (protein, carbs, fats, fiber).
 - Tailwind CSS
 - React Router, TanStack Query, Zustand
 - Supabase (auth + database)
-- Open Food Facts + USDA FoodData Central — Phase 4+
+- Open Food Facts + USDA FoodData Central
+
+## Food search (Phase 4)
+
+The **Search** tab lets you:
+
+- Search **USDA FoodData Central** (requires `VITE_USDA_API_KEY`)
+- Search **Open Food Facts** (no API key)
+- Search your **saved food library**
+- Look up products by **barcode** (manual entry; camera scanning in Phase 5)
+- Preview macros and **save foods** to your library
+
+Get a free USDA API key at [fdc.nal.usda.gov/api-key-signup](https://fdc.nal.usda.gov/api-key-signup).
 
 ## Getting started
 

@@ -1,0 +1,29 @@
+import type { FoodSource } from '@/types/database'
+
+/** Normalized food shape shared across USDA, Open Food Facts, and the saved library. */
+export interface FoodSearchResult {
+  /** Composite key for UI lists, e.g. usda:12345 or off:0123456789012 */
+  key: string
+  source: FoodSource
+  externalId: string
+  name: string
+  brand: string | null
+  servingSize: number
+  servingUnit: string
+  barcode: string | null
+  calories: number
+  protein_g: number
+  carbs_g: number
+  fats_g: number
+  fiber_g: number
+}
+
+export function roundMacro(value: number, decimals = 1): number {
+  const factor = 10 ** decimals
+  return Math.round(value * factor) / factor
+}
+
+export function formatMacro(value: number, unit = 'g'): string {
+  if (unit === 'kcal') return `${Math.round(value)} kcal`
+  return `${roundMacro(value)}${unit}`
+}

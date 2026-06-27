@@ -14,6 +14,7 @@ export const queryKeys = {
   profile: ['profile'] as const,
   foods: ['foods'] as const,
   food: (id: string) => ['foods', id] as const,
+  foodSearch: (query: string) => ['food-search', query] as const,
   logEntries: (date: string) => ['log-entries', date] as const,
   dailyTotals: (date: string) => ['daily-totals', date] as const,
 }
