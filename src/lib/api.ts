@@ -18,6 +18,8 @@ export const queryKeys = {
   logEntries: (date: string) => ['log-entries', date] as const,
   dailyTotals: (date: string) => ['daily-totals', date] as const,
   trends: (start: string, end: string) => ['trends', start, end] as const,
+  recentFoods: ['recent-foods'] as const,
+  loggableSearch: (query: string) => ['loggable-search', query] as const,
 }
 
 export async function fetchProfile(): Promise<Profile | null> {
@@ -91,6 +93,20 @@ export async function fetchLogEntries(date: string): Promise<LogEntry[]> {
     .eq('logged_date', date)
     .order('meal')
     .order('created_at')
+
+  if (error) throw error
+  return data ?? []
+}
+
+/** Most recent log entries across all dates, newest first (for the recent-foods list). */
+export async function fetchRecentLogEntries(limit = 250): Promise<LogEntry[]> {
+  const supabase = getSupabase()
+  const { data, error } = await supabase
+    .from('log_entries')
+    .select('*')
+    .order('logged_date', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(limit)
 
   if (error) throw error
   return data ?? []

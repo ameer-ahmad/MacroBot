@@ -1,7 +1,8 @@
-import type { Food, FoodInsert } from '@/types/database'
+import type { Food, FoodInsert, LogEntry } from '@/types/database'
 import type { FoodSearchResult } from '@/types/food'
-import { fetchFoods } from '@/lib/api'
-import { searchOffFoods } from '@/lib/openFoodFacts'
+import { roundMacro } from '@/types/food'
+import { fetchRecentLogEntries } from '@/lib/api'
+import { macrosPerUnit } from '@/lib/macros'
 import { isUsdaConfigured, searchUsdaFoods } from '@/lib/usda'
 
 export function foodToSearchResult(food: Food): FoodSearchResult {
@@ -39,58 +40,79 @@ export function searchResultToFoodInsert(result: FoodSearchResult): Omit<FoodIns
   }
 }
 
-export interface UnifiedSearchResult {
-  saved: FoodSearchResult[]
-  usda: FoodSearchResult[]
-  openFoodFacts: FoodSearchResult[]
+/** Convert a previously logged entry into a per-serving food result. */
+export function logEntryToRecentFood(entry: LogEntry): FoodSearchResult {
+  const perServing = macrosPerUnit(entry)
+  const identity = entry.food_id ?? entry.name.toLowerCase()
+
+  return {
+    key: `recent:${identity}`,
+    source: 'manual',
+    externalId: identity,
+    foodId: entry.food_id,
+    name: entry.name,
+    brand: null,
+    servingSize: 1,
+    servingUnit: entry.serving_unit,
+    barcode: null,
+    recent: true,
+    calories: roundMacro(perServing.calories, 0),
+    protein_g: roundMacro(perServing.protein_g),
+    carbs_g: roundMacro(perServing.carbs_g),
+    fats_g: roundMacro(perServing.fats_g),
+    fiber_g: roundMacro(perServing.fiber_g),
+  }
 }
 
-export async function searchFoods(query: string): Promise<UnifiedSearchResult> {
-  const trimmed = query.trim()
-  if (trimmed.length < 2) {
-    return { saved: [], usda: [], openFoodFacts: [] }
+/** Dedupe recent entries by food identity, keeping the most recently logged. */
+export function dedupeRecentFoods(entries: LogEntry[]): FoodSearchResult[] {
+  const seen = new Set<string>()
+  const result: FoodSearchResult[] = []
+
+  for (const entry of entries) {
+    const identity = entry.food_id ?? entry.name.toLowerCase()
+    if (seen.has(identity)) continue
+    seen.add(identity)
+    result.push(logEntryToRecentFood(entry))
   }
 
+  return result
+}
+
+export interface LoggableSearchResult {
+  recent: FoodSearchResult[]
+  usda: FoodSearchResult[]
+}
+
+/**
+ * Search foods for logging. Returns previously logged items first (ordered by
+ * recency), then USDA database items that have not been logged before. With an
+ * empty query, returns the most recently logged foods for quick re-adding.
+ */
+export async function searchLoggableFoods(query: string): Promise<LoggableSearchResult> {
+  const trimmed = query.trim()
   const lowerQuery = trimmed.toLowerCase()
 
-  const [savedFoods, usdaResults, offResults] = await Promise.all([
-    fetchFoods().then((foods) =>
-      foods
-        .filter(
+  const recentEntries = await fetchRecentLogEntries().catch(() => [] as LogEntry[])
+  const recentFoods = dedupeRecentFoods(recentEntries)
+
+  const recent =
+    trimmed.length === 0
+      ? recentFoods.slice(0, 15)
+      : recentFoods.filter(
           (food) =>
             food.name.toLowerCase().includes(lowerQuery) ||
             food.brand?.toLowerCase().includes(lowerQuery),
         )
-        .slice(0, 10)
-        .map(foodToSearchResult),
-    ),
-    isUsdaConfigured()
-      ? searchUsdaFoods(trimmed).catch(() => [] as FoodSearchResult[])
-      : Promise.resolve([] as FoodSearchResult[]),
-    searchOffFoods(trimmed).catch(() => [] as FoodSearchResult[]),
-  ])
 
-  return {
-    saved: savedFoods,
-    usda: usdaResults,
-    openFoodFacts: offResults,
-  }
-}
-
-export function flattenSearchResults(results: UnifiedSearchResult): FoodSearchResult[] {
-  const seen = new Set<string>()
-  const merged: FoodSearchResult[] = []
-
-  for (const group of [results.saved, results.usda, results.openFoodFacts]) {
-    for (const item of group) {
-      const dedupeKey = `${item.source}:${item.externalId}`
-      if (seen.has(dedupeKey)) continue
-      seen.add(dedupeKey)
-      merged.push(item)
-    }
+  let usda: FoodSearchResult[] = []
+  if (trimmed.length >= 2 && isUsdaConfigured()) {
+    const loggedNames = new Set(recent.map((food) => food.name.toLowerCase()))
+    const usdaResults = await searchUsdaFoods(trimmed).catch(() => [] as FoodSearchResult[])
+    usda = usdaResults.filter((food) => !loggedNames.has(food.name.toLowerCase()))
   }
 
-  return merged
+  return { recent, usda }
 }
 
 export const SOURCE_LABELS: Record<FoodSearchResult['source'], string> = {

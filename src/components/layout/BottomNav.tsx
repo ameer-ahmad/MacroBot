@@ -1,10 +1,9 @@
 import { NavLink } from 'react-router-dom'
-import { BarChart3, ClipboardList, Search, Settings } from 'lucide-react'
+import { BarChart3, ClipboardList, Settings } from 'lucide-react'
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: BarChart3 },
   { to: '/log', label: 'Log', icon: ClipboardList },
-  { to: '/search', label: 'Search', icon: Search },
   { to: '/settings', label: 'Settings', icon: Settings },
 ] as const
 

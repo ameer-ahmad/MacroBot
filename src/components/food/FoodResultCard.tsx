@@ -1,4 +1,4 @@
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, History } from 'lucide-react'
 import { SOURCE_LABELS } from '@/lib/foodSearch'
 import type { FoodSearchResult } from '@/types/food'
 import { formatMacro } from '@/types/food'
@@ -10,6 +10,8 @@ export function FoodResultCard({
   food: FoodSearchResult
   onSelect: (food: FoodSearchResult) => void
 }) {
+  const sourceLabel = food.recent ? 'Recently logged' : SOURCE_LABELS[food.source]
+
   return (
     <button
       type="button"
@@ -18,8 +20,9 @@ export function FoodResultCard({
     >
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium text-foreground">{food.name}</p>
-        <p className="mt-0.5 truncate text-xs text-muted">
-          {[food.brand, SOURCE_LABELS[food.source]].filter(Boolean).join(' · ')}
+        <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted">
+          {food.recent && <History className="h-3 w-3 shrink-0 text-primary" aria-hidden="true" />}
+          {[food.brand, sourceLabel].filter(Boolean).join(' · ')}
         </p>
         <p className="mt-1 text-xs text-muted">
           {formatMacro(food.calories, 'kcal')} per {food.servingSize}

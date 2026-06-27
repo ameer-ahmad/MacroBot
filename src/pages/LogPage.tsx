@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Plus } from 'lucide-react'
-import { AddLogEntryModal } from '@/components/log/AddLogEntryModal'
+import { AddFoodFlow } from '@/components/log/AddFoodFlow'
 import { DateNavigator, TodayButton } from '@/components/log/DateNavigator'
 import { EditLogEntryModal } from '@/components/log/EditLogEntryModal'
 import { MacroProgressBar } from '@/components/log/MacroProgressBar'
@@ -147,8 +147,7 @@ export function LogPage() {
       </div>
 
       {addMeal && (
-        <AddLogEntryModal
-          open
+        <AddFoodFlow
           date={date}
           initialMeal={addMeal}
           onClose={() => setAddMeal(null)}

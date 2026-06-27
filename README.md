@@ -10,31 +10,20 @@ A PWA for tracking calories and macros (protein, carbs, fats, fiber).
 - Supabase (auth + database)
 - Open Food Facts + USDA FoodData Central
 
-## Food search (Phase 4)
+## Food logging
 
-The **Search** tab lets you:
+The **Log** tab is the single place to add food. It shows your daily log grouped by meal (breakfast, lunch, dinner, snacks). Tap **Add** on any meal to open the add flow, which offers three ways to add food:
 
-- Search **USDA FoodData Central** (requires `VITE_USDA_API_KEY`)
-- Search **Open Food Facts** (no API key)
-- Search your **saved food library**
-- Look up products by **barcode** (manual entry; camera scanning in Phase 5)
-- Preview macros and **save foods** to your library
+- **Search** — results show your previously logged foods first (ordered by recency), then **USDA FoodData Central** items you haven't logged before. All results match what you type.
+- **Scan** — camera barcode scanning via Open Food Facts.
+- **Manual** — enter a name and macros directly.
 
-Get a free USDA API key at [fdc.nal.usda.gov/api-key-signup](https://fdc.nal.usda.gov/api-key-signup).
+After choosing a food, set the quantity and meal, then add it to the log. Tap any logged entry to edit quantity/meal or delete it.
 
-## Barcode scanning (Phase 5)
-
-On the **Search** tab, tap **Scan barcode with camera** to scan a product. The app looks it up in Open Food Facts and opens a nutrition preview where you can save it to your library. Manual barcode entry remains available as a fallback.
-
-Camera access requires HTTPS or `localhost`. If permission is denied, use manual entry instead.
-
-## Food logging (Phase 6)
-
-- **Log** tab: daily food log grouped by meal (breakfast, lunch, dinner, snacks)
-- Add from **saved foods** or **manual entry** with quantity and meal
-- Tap an entry to edit quantity/meal or delete
-- **Date navigation**: prev/next day, jump to today
+- **Date navigation**: prev/next day, tap the date for a calendar, jump to today
 - **Dashboard** shows live totals vs your daily goals
+
+Get a free USDA API key at [fdc.nal.usda.gov/api-key-signup](https://fdc.nal.usda.gov/api-key-signup). Camera access requires HTTPS or `localhost`; if permission is denied, use manual entry.
 
 ## Insights (Phase 7)
 

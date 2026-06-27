@@ -7,7 +7,6 @@ import { AppShell } from '@/components/layout/AppShell'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { LogPage } from '@/pages/LogPage'
 import { LoginPage } from '@/pages/LoginPage'
-import { SearchPage } from '@/pages/SearchPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { SignUpPage } from '@/pages/SignUpPage'
 
@@ -36,7 +35,6 @@ export const router = createBrowserRouter([
             children: [
               { index: true, element: <DashboardPage /> },
               { path: 'log', element: <LogPage /> },
-              { path: 'search', element: <SearchPage /> },
               { path: 'settings', element: <SettingsPage /> },
             ],
           },

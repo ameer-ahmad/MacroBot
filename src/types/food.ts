@@ -18,6 +18,10 @@ export interface FoodSearchResult {
   carbs_g: number
   fats_g: number
   fiber_g: number
+  /** True when this result comes from the user's previously logged foods. */
+  recent?: boolean
+  /** Links back to a saved foods row when known (for log_entries.food_id). */
+  foodId?: string | null
 }
 
 export function roundMacro(value: number, decimals = 1): number {
