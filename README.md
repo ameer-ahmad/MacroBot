@@ -22,6 +22,12 @@ The **Search** tab lets you:
 
 Get a free USDA API key at [fdc.nal.usda.gov/api-key-signup](https://fdc.nal.usda.gov/api-key-signup).
 
+## Barcode scanning (Phase 5)
+
+On the **Search** tab, tap **Scan barcode with camera** to scan a product. The app looks it up in Open Food Facts and opens a nutrition preview where you can save it to your library. Manual barcode entry remains available as a fallback.
+
+Camera access requires HTTPS or `localhost`. If permission is denied, use manual entry instead.
+
 ## Getting started
 
 ```bash

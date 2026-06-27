@@ -1,8 +1,11 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Barcode, Loader2, Search } from 'lucide-react'
+import { Barcode, Camera, Loader2, Search } from 'lucide-react'
+import { BarcodeNotFound } from '@/components/food/BarcodeNotFound'
+import { BarcodeScanner } from '@/components/food/BarcodeScanner'
 import { FoodPreview } from '@/components/food/FoodPreview'
 import { FoodResultCard } from '@/components/food/FoodResultCard'
+import { useBarcodeLookup } from '@/hooks/useBarcodeLookup'
 import { useDebounce } from '@/hooks/useDebounce'
 import { createFood, queryKeys } from '@/lib/api'
 import {
@@ -10,7 +13,6 @@ import {
   searchFoods,
   searchResultToFoodInsert,
 } from '@/lib/foodSearch'
-import { lookupOffBarcode } from '@/lib/openFoodFacts'
 import { fetchUsdaFood, isUsdaConfigured } from '@/lib/usda'
 import type { FoodSearchResult } from '@/types/food'
 
@@ -20,8 +22,10 @@ export function SearchPage() {
   const [barcode, setBarcode] = useState('')
   const [selected, setSelected] = useState<FoodSearchResult | null>(null)
   const [savedKey, setSavedKey] = useState<string | null>(null)
-  const [barcodeError, setBarcodeError] = useState<string | null>(null)
-  const [barcodeLoading, setBarcodeLoading] = useState(false)
+  const [scannerOpen, setScannerOpen] = useState(false)
+
+  const { lookup, loading: barcodeLoading, error: barcodeError, lastBarcode, clearError } =
+    useBarcodeLookup()
 
   const debouncedQuery = useDebounce(query, 400)
 
@@ -57,23 +61,24 @@ export function SearchPage() {
     setSavedKey(null)
   }
 
-  async function handleBarcodeLookup(e: React.FormEvent) {
+  async function handleBarcodeSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setBarcodeError(null)
-    setBarcodeLoading(true)
-
-    try {
-      const product = await lookupOffBarcode(barcode)
-      if (!product) {
-        setBarcodeError('No product found for this barcode.')
-        return
-      }
+    clearError()
+    const product = await lookup(barcode)
+    if (product) {
       setSelected(product)
       setSavedKey(null)
-    } catch (err) {
-      setBarcodeError(err instanceof Error ? err.message : 'Barcode lookup failed')
-    } finally {
-      setBarcodeLoading(false)
+    }
+  }
+
+  async function handleScan(barcodeValue: string) {
+    setScannerOpen(false)
+    setBarcode(barcodeValue)
+    clearError()
+    const product = await lookup(barcodeValue)
+    if (product) {
+      setSelected(product)
+      setSavedKey(null)
     }
   }
 
@@ -83,12 +88,44 @@ export function SearchPage() {
     saveMutation.reset()
   }
 
+  function openScanner() {
+    clearError()
+    setScannerOpen(true)
+  }
+
+  function focusManualBarcode() {
+    clearError()
+    document.getElementById('barcode-input')?.focus()
+  }
+
   return (
     <div className="space-y-6">
       <section>
         <h2 className="text-2xl font-bold text-foreground">Find Food</h2>
-        <p className="text-sm text-muted">Search USDA & Open Food Facts, or look up by barcode</p>
+        <p className="text-sm text-muted">Search, scan a barcode, or look one up manually</p>
       </section>
+
+      <button
+        type="button"
+        onClick={openScanner}
+        disabled={barcodeLoading}
+        className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-primary bg-accent px-4 py-4 font-medium text-primary shadow-sm transition-colors duration-200 hover:bg-primary hover:text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {barcodeLoading ? (
+          <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
+        ) : (
+          <Camera className="h-5 w-5" aria-hidden="true" />
+        )}
+        {barcodeLoading ? 'Looking up product…' : 'Scan barcode with camera'}
+      </button>
+
+      {barcodeError && lastBarcode && (
+        <BarcodeNotFound
+          barcode={lastBarcode}
+          onRetry={openScanner}
+          onManualEntry={focusManualBarcode}
+        />
+      )}
 
       <div className="relative">
         <Search
@@ -142,16 +179,20 @@ export function SearchPage() {
       <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
         <h3 className="flex items-center gap-2 font-semibold text-foreground">
           <Barcode className="h-5 w-5 text-primary" aria-hidden="true" />
-          Barcode lookup
+          Manual barcode entry
         </h3>
-        <p className="mt-1 text-xs text-muted">Enter a barcode manually. Camera scanning comes in Phase 5.</p>
+        <p className="mt-1 text-xs text-muted">Type a barcode if scanning isn&apos;t available</p>
 
-        <form onSubmit={handleBarcodeLookup} className="mt-3 flex gap-2">
+        <form onSubmit={handleBarcodeSubmit} className="mt-3 flex gap-2">
           <input
+            id="barcode-input"
             type="text"
             inputMode="numeric"
             value={barcode}
-            onChange={(e) => setBarcode(e.target.value)}
+            onChange={(e) => {
+              setBarcode(e.target.value)
+              if (barcodeError) clearError()
+            }}
             placeholder="e.g. 0123456789012"
             className="min-w-0 flex-1 rounded-xl border border-border bg-background px-3 py-2.5 text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             aria-label="Barcode"
@@ -165,10 +206,14 @@ export function SearchPage() {
           </button>
         </form>
 
-        {barcodeError && (
+        {barcodeError && !lastBarcode && (
           <p className="mt-2 text-sm text-fats">{barcodeError}</p>
         )}
       </section>
+
+      {scannerOpen && (
+        <BarcodeScanner onScan={handleScan} onClose={() => setScannerOpen(false)} />
+      )}
 
       {selected && (
         <FoodPreview
