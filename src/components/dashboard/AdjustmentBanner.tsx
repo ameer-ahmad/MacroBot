@@ -15,9 +15,15 @@ function formatChange(lb: number, imperial: boolean): string {
 export function AdjustmentBanner({
   result,
   profile,
+  simulate = false,
+  onResolved,
 }: {
   result: AdjustmentResult
   profile: Profile
+  /** When true, accept/deny do NOT write to the database (dev simulation only). */
+  simulate?: boolean
+  /** Called after the user resolves the banner (apply/keep/got it). */
+  onResolved?: (action: 'applied' | 'kept') => void
 }) {
   const queryClient = useQueryClient()
   const imperial = profile.units === 'imperial'
@@ -31,6 +37,17 @@ export function AdjustmentBanner({
     mutationFn: (updates: Parameters<typeof updateProfile>[0]) => updateProfile(updates),
     onSuccess: invalidate,
   })
+
+  function resolve(
+    updates: Parameters<typeof updateProfile>[0],
+    action: 'applied' | 'kept',
+  ) {
+    if (simulate) {
+      onResolved?.(action)
+      return
+    }
+    acceptMutation.mutate(updates, { onSuccess: () => onResolved?.(action) })
+  }
 
   if (result.status === 'not_followed') {
     return (
@@ -50,9 +67,7 @@ export function AdjustmentBanner({
             </p>
             <button
               type="button"
-              onClick={() =>
-                acceptMutation.mutate({ last_adjustment_date: toDateString() })
-              }
+              onClick={() => resolve({ last_adjustment_date: toDateString() }, 'kept')}
               disabled={acceptMutation.isPending}
               className="mt-3 cursor-pointer rounded-xl border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-accent disabled:opacity-50"
             >
@@ -106,10 +121,10 @@ export function AdjustmentBanner({
             <button
               type="button"
               onClick={() =>
-                acceptMutation.mutate({
-                  ...result.goals,
-                  last_adjustment_date: toDateString(),
-                })
+                resolve(
+                  { ...result.goals, last_adjustment_date: toDateString() },
+                  'applied',
+                )
               }
               disabled={acceptMutation.isPending}
               className="flex-1 cursor-pointer rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
@@ -118,9 +133,7 @@ export function AdjustmentBanner({
             </button>
             <button
               type="button"
-              onClick={() =>
-                acceptMutation.mutate({ last_adjustment_date: toDateString() })
-              }
+              onClick={() => resolve({ last_adjustment_date: toDateString() }, 'kept')}
               disabled={acceptMutation.isPending}
               className="cursor-pointer rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground hover:bg-accent disabled:opacity-50"
             >

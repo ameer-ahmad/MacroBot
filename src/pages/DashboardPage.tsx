@@ -2,6 +2,7 @@ import { Flame, Beef, Wheat, Droplets, Leaf } from 'lucide-react'
 import { TrendsSection } from '@/components/dashboard/TrendsSection'
 import { WeightCard } from '@/components/dashboard/WeightCard'
 import { AdjustmentBanner } from '@/components/dashboard/AdjustmentBanner'
+import { DevAdjustmentSimulator } from '@/components/dashboard/DevAdjustmentSimulator'
 import { MacroProgressBar } from '@/components/log/MacroProgressBar'
 import { useDailyTotals } from '@/hooks/useLogEntries'
 import { useProfile } from '@/hooks/useProfile'
@@ -100,6 +101,8 @@ export function DashboardPage() {
       <WeightCard />
 
       <TrendsSection />
+
+      {import.meta.env.DEV && profile && <DevAdjustmentSimulator profile={profile} />}
     </div>
   )
 }
