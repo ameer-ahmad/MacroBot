@@ -17,6 +17,7 @@ export const queryKeys = {
   foodSearch: (query: string) => ['food-search', query] as const,
   logEntries: (date: string) => ['log-entries', date] as const,
   dailyTotals: (date: string) => ['daily-totals', date] as const,
+  trends: (start: string, end: string) => ['trends', start, end] as const,
 }
 
 export async function fetchProfile(): Promise<Profile | null> {
@@ -89,6 +90,23 @@ export async function fetchLogEntries(date: string): Promise<LogEntry[]> {
     .select('*')
     .eq('logged_date', date)
     .order('meal')
+    .order('created_at')
+
+  if (error) throw error
+  return data ?? []
+}
+
+export async function fetchLogEntriesInRange(
+  startDate: string,
+  endDate: string,
+): Promise<LogEntry[]> {
+  const supabase = getSupabase()
+  const { data, error } = await supabase
+    .from('log_entries')
+    .select('*')
+    .gte('logged_date', startDate)
+    .lte('logged_date', endDate)
+    .order('logged_date')
     .order('created_at')
 
   if (error) throw error

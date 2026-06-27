@@ -1,4 +1,5 @@
 import { Flame, Beef, Wheat, Droplets, Leaf } from 'lucide-react'
+import { TrendsSection } from '@/components/dashboard/TrendsSection'
 import { MacroProgressBar } from '@/components/log/MacroProgressBar'
 import { useDailyTotals } from '@/hooks/useLogEntries'
 import { useProfile } from '@/hooks/useProfile'
@@ -85,6 +86,8 @@ export function DashboardPage() {
           </div>
         ))}
       </section>
+
+      <TrendsSection />
     </div>
   )
 }

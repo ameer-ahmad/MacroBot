@@ -36,6 +36,14 @@ Camera access requires HTTPS or `localhost`. If permission is denied, use manual
 - **Date navigation**: prev/next day, jump to today
 - **Dashboard** shows live totals vs your daily goals
 
+## Insights (Phase 7)
+
+- **Dashboard trends** section with week/month toggle
+- **Calorie line chart** with daily goal reference line
+- **Macro bar chart** for protein, carbs, fats, fiber
+- Summary stats: average calories, average protein, days logged
+- **Settings** profile & goals editor (name, units, all macro targets)
+
 ## Getting started
 
 ```bash

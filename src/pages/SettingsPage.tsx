@@ -119,7 +119,7 @@ export function SettingsPage() {
 
       <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-foreground">Daily goals</h3>
+          <h3 className="font-semibold text-foreground">Profile & goals</h3>
           {!editing && profile && (
             <button
               type="button"
@@ -132,6 +132,27 @@ export function SettingsPage() {
         </div>
 
         {profileLoading && <p className="mt-4 text-sm text-muted">Loading…</p>}
+
+        {!profileLoading && !editing && profile && (
+          <dl className="mt-4 space-y-3">
+            {profile.name && (
+              <div className="flex items-center justify-between text-sm">
+                <dt className="text-muted">Name</dt>
+                <dd className="font-medium text-foreground">{profile.name}</dd>
+              </div>
+            )}
+            <div className="flex items-center justify-between text-sm">
+              <dt className="text-muted">Units</dt>
+              <dd className="font-medium capitalize text-foreground">{profile.units}</dd>
+            </div>
+            {goalRows.map(([label, value]) => (
+              <div key={label} className="flex items-center justify-between text-sm">
+                <dt className="text-muted">{label}</dt>
+                <dd className="font-medium text-foreground">{value}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
 
         {!profileLoading && editing && (
           <form onSubmit={handleSave} className="mt-4 space-y-3">
@@ -197,17 +218,6 @@ export function SettingsPage() {
               </button>
             </div>
           </form>
-        )}
-
-        {!profileLoading && !editing && (
-          <dl className="mt-4 space-y-3">
-            {goalRows.map(([label, value]) => (
-              <div key={label} className="flex items-center justify-between text-sm">
-                <dt className="text-muted">{label}</dt>
-                <dd className="font-medium text-foreground">{value}</dd>
-              </div>
-            ))}
-          </dl>
         )}
       </section>
     </div>
