@@ -19,12 +19,12 @@ function getCameraErrorMessage(error: unknown): string {
   return 'Could not start the camera.'
 }
 
-function pickCamera(devices: MediaDeviceInfo[]): string | undefined {
-  const back = devices.find((device) =>
-    /back|rear|environment/i.test(device.label),
-  )
-  return back?.deviceId ?? devices[0]?.deviceId
+function isCameraSupported(): boolean {
+  return typeof navigator !== 'undefined' && Boolean(navigator.mediaDevices?.getUserMedia)
 }
+
+const INSECURE_CONTEXT_MESSAGE =
+  'Camera access needs a secure connection (HTTPS) or localhost. On your phone, open the app via the https:// dev URL and accept the certificate warning, then try again. You can also enter the barcode manually.'
 
 export function BarcodeScanner({
   onScan,
@@ -41,28 +41,49 @@ export function BarcodeScanner({
   useEffect(() => {
     const reader = new BrowserMultiFormatReader()
     let controls: { stop: () => void } | null = null
+    let stream: MediaStream | null = null
     let cancelled = false
 
+    function cleanup() {
+      controls?.stop()
+      stream?.getTracks().forEach((track) => track.stop())
+    }
+
     async function start() {
+      if (!isCameraSupported()) {
+        setError(
+          window.isSecureContext === false
+            ? INSECURE_CONTEXT_MESSAGE
+            : 'This browser does not support camera access. Enter the barcode manually instead.',
+        )
+        setStarting(false)
+        return
+      }
+
       try {
-        const devices = await BrowserMultiFormatReader.listVideoInputDevices()
+        // Use getUserMedia with facingMode directly so we never call
+        // enumerateDevices, which is unsupported in some mobile browsers and
+        // insecure contexts ("can't enumerate devices, method not supported").
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } },
+          audio: false,
+        })
 
-        if (cancelled) return
-
-        if (devices.length === 0) {
-          setError('No camera found on this device.')
-          setStarting(false)
+        if (cancelled) {
+          stream.getTracks().forEach((track) => track.stop())
           return
         }
 
-        const deviceId = pickCamera(devices)
         const video = videoRef.current
         if (!video) return
 
-        controls = await reader.decodeFromVideoDevice(deviceId, video, (result) => {
+        video.srcObject = stream
+        await video.play().catch(() => undefined)
+
+        controls = await reader.decodeFromVideoElement(video, (result) => {
           if (!result || scannedRef.current) return
           scannedRef.current = true
-          controls?.stop()
+          cleanup()
           onScan(result.getText())
         })
 
@@ -79,7 +100,7 @@ export function BarcodeScanner({
 
     return () => {
       cancelled = true
-      controls?.stop()
+      cleanup()
     }
   }, [onScan])
 
