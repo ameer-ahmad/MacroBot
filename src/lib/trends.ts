@@ -23,7 +23,14 @@ export const CHART_COLORS = {
   carbs: '#f59e0b',
   fats: '#ef4444',
   fiber: '#8b5cf6',
+  weight: '#0ea5e9',
 } as const
+
+export interface WeightTrendPoint {
+  date: string
+  label: string
+  weight: number | null
+}
 
 export function getTrendDateRange(days: TrendRange): { start: string; end: string } {
   const end = toDateString()
@@ -55,6 +62,28 @@ export function buildTrendSeries(
       date,
       label: formatChartLabel(date, days),
       ...totals,
+    })
+  }
+
+  return points
+}
+
+export function buildWeightSeries(
+  entries: { logged_date: string; weight_kg: number }[],
+  days: TrendRange,
+  toDisplay: (kg: number) => number,
+): WeightTrendPoint[] {
+  const end = toDateString()
+  const byDate = new Map(entries.map((e) => [e.logged_date, Number(e.weight_kg)]))
+  const points: WeightTrendPoint[] = []
+
+  for (let i = days - 1; i >= 0; i--) {
+    const date = shiftDate(end, -i)
+    const kg = byDate.get(date)
+    points.push({
+      date,
+      label: formatChartLabel(date, days),
+      weight: kg != null ? Math.round(toDisplay(kg) * 10) / 10 : null,
     })
   }
 

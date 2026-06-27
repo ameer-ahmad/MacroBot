@@ -8,6 +8,7 @@ import type {
   MealType,
   Profile,
   ProfileUpdate,
+  WeightEntry,
 } from '@/types/database'
 
 export const queryKeys = {
@@ -20,6 +21,7 @@ export const queryKeys = {
   trends: (start: string, end: string) => ['trends', start, end] as const,
   recentFoods: ['recent-foods'] as const,
   loggableSearch: (query: string) => ['loggable-search', query] as const,
+  weightEntries: ['weight-entries'] as const,
 }
 
 export async function fetchProfile(): Promise<Profile | null> {
@@ -178,6 +180,49 @@ export async function updateLogEntry(
 
   if (error) throw error
   return data
+}
+
+/** Recent daily weight logs, newest first. */
+export async function fetchWeightEntries(limit = 180): Promise<WeightEntry[]> {
+  const supabase = getSupabase()
+  const { data, error } = await supabase
+    .from('weight_entries')
+    .select('*')
+    .order('logged_date', { ascending: false })
+    .limit(limit)
+
+  if (error) throw error
+  return data ?? []
+}
+
+/** Insert or update the weight for a given day (one entry per day). */
+export async function upsertWeightEntry(input: {
+  logged_date: string
+  weight_kg: number
+}): Promise<WeightEntry> {
+  const supabase = getSupabase()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const { data, error } = await supabase
+    .from('weight_entries')
+    .upsert(
+      { user_id: user.id, logged_date: input.logged_date, weight_kg: input.weight_kg },
+      { onConflict: 'user_id,logged_date' },
+    )
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export async function deleteWeightEntry(id: string): Promise<void> {
+  const supabase = getSupabase()
+  const { error } = await supabase.from('weight_entries').delete().eq('id', id)
+  if (error) throw error
 }
 
 export function sumMacros(entries: Pick<LogEntry, keyof Macros>[]) {

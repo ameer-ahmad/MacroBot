@@ -1,8 +1,11 @@
 import { Flame, Beef, Wheat, Droplets, Leaf } from 'lucide-react'
 import { TrendsSection } from '@/components/dashboard/TrendsSection'
+import { WeightCard } from '@/components/dashboard/WeightCard'
+import { AdjustmentBanner } from '@/components/dashboard/AdjustmentBanner'
 import { MacroProgressBar } from '@/components/log/MacroProgressBar'
 import { useDailyTotals } from '@/hooks/useLogEntries'
 import { useProfile } from '@/hooks/useProfile'
+import { useWeeklyAdjustment } from '@/hooks/useWeeklyAdjustment'
 import { macroRemaining } from '@/lib/macros'
 import { formatMacro } from '@/types/food'
 
@@ -13,6 +16,7 @@ function formatGoal(value: number, suffix = '') {
 export function DashboardPage() {
   const { data: profile, isLoading: profileLoading } = useProfile()
   const { totals, isLoading: logLoading } = useDailyTotals()
+  const adjustment = useWeeklyAdjustment()
 
   const goals = {
     calories: profile?.calorie_goal ?? 2000,
@@ -41,6 +45,12 @@ export function DashboardPage() {
         </h2>
         <p className="text-sm text-muted">Track your daily nutrition goals</p>
       </section>
+
+      {profile &&
+        adjustment &&
+        (adjustment.status === 'suggest' || adjustment.status === 'not_followed') && (
+          <AdjustmentBanner result={adjustment} profile={profile} />
+        )}
 
       <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
         <div className="flex items-center gap-2">
@@ -86,6 +96,8 @@ export function DashboardPage() {
           </div>
         ))}
       </section>
+
+      <WeightCard />
 
       <TrendsSection />
     </div>

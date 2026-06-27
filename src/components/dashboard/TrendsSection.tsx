@@ -12,10 +12,13 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { useQuery } from '@tanstack/react-query'
 import { Loader2 } from 'lucide-react'
 import { useTrendData } from '@/hooks/useTrendData'
 import { useProfile } from '@/hooks/useProfile'
-import { CHART_COLORS, type TrendRange } from '@/lib/trends'
+import { fetchWeightEntries, queryKeys } from '@/lib/api'
+import { kgToLb } from '@/lib/goals'
+import { buildWeightSeries, CHART_COLORS, type TrendRange } from '@/lib/trends'
 
 function ChartTooltip({
   active,
@@ -41,10 +44,44 @@ function ChartTooltip({
   )
 }
 
+function WeightTooltip({
+  active,
+  payload,
+  label,
+  unitLabel,
+}: {
+  active?: boolean
+  payload?: { value: number }[]
+  label?: string
+  unitLabel: string
+}) {
+  if (!active || !payload?.length || payload[0]?.value == null) return null
+  return (
+    <div className="rounded-lg border border-border bg-card px-3 py-2 text-xs shadow-lg">
+      <p className="mb-1 font-medium text-foreground">{label}</p>
+      <p style={{ color: CHART_COLORS.weight }}>
+        Weight: {Math.round(payload[0].value * 10) / 10} {unitLabel}
+      </p>
+    </div>
+  )
+}
+
 export function TrendsSection() {
   const [range, setRange] = useState<TrendRange>(7)
   const { data: profile } = useProfile()
   const { series, summary, isLoading } = useTrendData(range)
+
+  const imperial = profile?.units === 'imperial'
+  const weightUnit = imperial ? 'lb' : 'kg'
+  const { data: weightEntries = [] } = useQuery({
+    queryKey: queryKeys.weightEntries,
+    queryFn: () => fetchWeightEntries(),
+    enabled: Boolean(profile),
+  })
+  const weightSeries = buildWeightSeries(weightEntries, range, (kg) =>
+    imperial ? kgToLb(kg) : kg,
+  )
+  const hasWeight = weightSeries.some((p) => p.weight != null)
 
   const calorieGoal = profile?.calorie_goal ?? 2000
 
@@ -170,6 +207,49 @@ export function TrendsSection() {
                 </BarChart>
               </ResponsiveContainer>
             </div>
+          </div>
+
+          <div>
+            <p className="mb-2 text-sm font-medium text-muted">Weight ({weightUnit})</p>
+            {hasWeight ? (
+              <div className="h-48 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart
+                    data={weightSeries}
+                    margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fontSize: 11, fill: 'var(--color-muted)' }}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      domain={['dataMin - 1', 'dataMax + 1']}
+                      tick={{ fontSize: 11, fill: 'var(--color-muted)' }}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <Tooltip content={<WeightTooltip unitLabel={weightUnit} />} />
+                    <Line
+                      type="monotone"
+                      dataKey="weight"
+                      name="Weight"
+                      stroke={CHART_COLORS.weight}
+                      strokeWidth={2}
+                      connectNulls
+                      dot={{ r: 3, fill: CHART_COLORS.weight }}
+                      activeDot={{ r: 5 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <p className="rounded-xl border border-border bg-background px-3 py-6 text-center text-xs text-muted">
+                Log your weight to see the trend here.
+              </p>
+            )}
           </div>
         </>
       )}

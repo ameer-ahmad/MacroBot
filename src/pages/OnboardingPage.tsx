@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { completeOnboarding } from '@/lib/auth'
-import { queryKeys } from '@/lib/api'
+import { queryKeys, upsertWeightEntry } from '@/lib/api'
 import { useAuth } from '@/providers/AuthProvider'
 import { GoalCalculator } from '@/components/profile/GoalCalculator'
 import {
@@ -10,8 +10,9 @@ import {
   AuthLayout,
   authButtonClass,
 } from '@/components/auth/AuthLayout'
-import type { GoalSet } from '@/lib/goals'
-import type { UnitSystem } from '@/types/database'
+import { calcInputsToProfile, type CalcInputs, type GoalSet } from '@/lib/goals'
+import { toDateString } from '@/lib/macros'
+import type { ProfileUpdate, UnitSystem } from '@/types/database'
 
 type Mode = 'calculate' | 'manual'
 
@@ -42,15 +43,24 @@ export function OnboardingPage() {
   const [fatsGoal, setFatsGoal] = useState(String(defaultGoals.fats_goal))
   const [fiberGoal, setFiberGoal] = useState(String(defaultGoals.fiber_goal))
 
-  async function saveAndFinish(goals: GoalSet) {
+  async function saveAndFinish(goals: GoalSet, inputs?: CalcInputs) {
     setError(null)
     setSubmitting(true)
     try {
-      await completeOnboarding({
+      const updates: ProfileUpdate = {
         name: name.trim() || null,
         units,
         ...goals,
-      })
+        ...(inputs ? calcInputsToProfile(inputs) : {}),
+      }
+      await completeOnboarding(updates)
+      // Seed today's weight so the trend has a starting point.
+      if (inputs) {
+        await upsertWeightEntry({
+          logged_date: toDateString(),
+          weight_kg: Math.round(inputs.weightKg * 10) / 10,
+        }).catch(() => undefined)
+      }
       await queryClient.invalidateQueries({ queryKey: queryKeys.profile })
       navigate('/', { replace: true })
     } catch (err) {
@@ -162,7 +172,7 @@ export function OnboardingPage() {
             units={units}
             applyLabel="Start tracking"
             busy={submitting}
-            onApply={(goals) => void saveAndFinish(goals)}
+            onApply={(goals, inputs) => void saveAndFinish(goals, inputs)}
           />
         ) : (
           <form onSubmit={handleManualSubmit} className="space-y-4">

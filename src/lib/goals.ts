@@ -4,11 +4,15 @@
 // get maintenance calories (TDEE). Macros are derived from a protein/carbs/fat
 // percentage split, converted to grams (4 kcal/g protein & carbs, 9 kcal/g fat).
 
-export type Sex = 'male' | 'female'
-export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'very' | 'extra'
-export type DietType = 'low' | 'moderate' | 'high'
-export type GoalDirection = 'lose' | 'maintain' | 'gain'
-export type Intensity = 'slow' | 'moderate' | 'fast'
+import type {
+  ActivityLevel,
+  DietType,
+  GoalDirection,
+  Intensity,
+  Sex,
+} from '@/types/database'
+
+export type { ActivityLevel, DietType, GoalDirection, Intensity, Sex }
 
 export interface CalcInputs {
   sex: Sex
@@ -96,11 +100,24 @@ export const INTENSITY_OPTIONS: {
   label: string
   /** Daily calorie delta from maintenance. */
   delta: number
+  /** Target weight change per week, in pounds. */
+  lbPerWeek: number
 }[] = [
-  { value: 'slow', label: 'Slow', delta: 250 },
-  { value: 'moderate', label: 'Moderate', delta: 500 },
-  { value: 'fast', label: 'Fast', delta: 750 },
+  { value: 'slow', label: 'Slow', delta: 250, lbPerWeek: 0.5 },
+  { value: 'moderate', label: 'Moderate', delta: 500, lbPerWeek: 1 },
+  { value: 'fast', label: 'Fast', delta: 750, lbPerWeek: 1.5 },
 ]
+
+/** Expected weekly weight change (lb) for a goal + intensity. Negative = loss. */
+export function expectedWeeklyChangeLb(
+  goal: GoalDirection,
+  intensity: Intensity,
+): number {
+  const sign = GOAL_OPTIONS.find((o) => o.value === goal)?.sign ?? 0
+  if (sign === 0) return 0
+  const pace = INTENSITY_OPTIONS.find((o) => o.value === intensity)?.lbPerWeek ?? 0
+  return sign * pace
+}
 
 export function activityFactor(activity: ActivityLevel): number {
   return ACTIVITY_OPTIONS.find((o) => o.value === activity)?.factor ?? 1.2
@@ -156,6 +173,20 @@ export function macrosForCalories(
 export function calcGoals(input: CalcInputs): GoalSet {
   const calorie_goal = calcCalories(input)
   return { calorie_goal, ...macrosForCalories(calorie_goal, input.diet) }
+}
+
+/** Map calculator inputs to the profile columns that persist body stats + goal. */
+export function calcInputsToProfile(input: CalcInputs) {
+  return {
+    sex: input.sex,
+    age: input.age,
+    height_cm: Math.round(input.heightCm * 10) / 10,
+    weight_kg: Math.round(input.weightKg * 10) / 10,
+    activity_level: input.activity,
+    diet_type: input.diet,
+    goal_direction: input.goal,
+    intensity: input.intensity,
+  }
 }
 
 // ---------------------------------------------------------------------------

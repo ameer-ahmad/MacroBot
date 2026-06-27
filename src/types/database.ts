@@ -9,6 +9,11 @@ export type Json =
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack'
 export type FoodSource = 'manual' | 'custom' | 'usda' | 'open_food_facts'
 export type UnitSystem = 'metric' | 'imperial'
+export type Sex = 'male' | 'female'
+export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'very' | 'extra'
+export type DietType = 'low' | 'moderate' | 'high'
+export type GoalDirection = 'lose' | 'maintain' | 'gain'
+export type Intensity = 'slow' | 'moderate' | 'fast'
 
 export interface Macros {
   calories: number
@@ -31,6 +36,15 @@ export interface Database {
           carbs_goal: number
           fats_goal: number
           fiber_goal: number
+          sex: Sex | null
+          age: number | null
+          height_cm: number | null
+          weight_kg: number | null
+          activity_level: ActivityLevel | null
+          diet_type: DietType | null
+          goal_direction: GoalDirection | null
+          intensity: Intensity | null
+          last_adjustment_date: string | null
           created_at: string
           updated_at: string
         }
@@ -43,6 +57,15 @@ export interface Database {
           carbs_goal?: number
           fats_goal?: number
           fiber_goal?: number
+          sex?: Sex | null
+          age?: number | null
+          height_cm?: number | null
+          weight_kg?: number | null
+          activity_level?: ActivityLevel | null
+          diet_type?: DietType | null
+          goal_direction?: GoalDirection | null
+          intensity?: Intensity | null
+          last_adjustment_date?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -55,6 +78,42 @@ export interface Database {
           carbs_goal?: number
           fats_goal?: number
           fiber_goal?: number
+          sex?: Sex | null
+          age?: number | null
+          height_cm?: number | null
+          weight_kg?: number | null
+          activity_level?: ActivityLevel | null
+          diet_type?: DietType | null
+          goal_direction?: GoalDirection | null
+          intensity?: Intensity | null
+          last_adjustment_date?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      weight_entries: {
+        Row: {
+          id: string
+          user_id: string
+          logged_date: string
+          weight_kg: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          logged_date?: string
+          weight_kg: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          logged_date?: string
+          weight_kg?: number
           created_at?: string
           updated_at?: string
         }
@@ -192,3 +251,5 @@ export type Food = Database['public']['Tables']['foods']['Row']
 export type FoodInsert = Database['public']['Tables']['foods']['Insert']
 export type LogEntry = Database['public']['Tables']['log_entries']['Row']
 export type LogEntryInsert = Database['public']['Tables']['log_entries']['Insert']
+export type WeightEntry = Database['public']['Tables']['weight_entries']['Row']
+export type WeightEntryInsert = Database['public']['Tables']['weight_entries']['Insert']

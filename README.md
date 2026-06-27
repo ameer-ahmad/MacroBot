@@ -26,13 +26,19 @@ After choosing a food, set the quantity and meal, then add it to the log. Tap an
 
 Get a free USDA API key at [fdc.nal.usda.gov/api-key-signup](https://fdc.nal.usda.gov/api-key-signup). Camera access requires HTTPS or `localhost`; if permission is denied, use manual entry.
 
+## Goals & weight tracking
+
+- **Goal calculator** (onboarding + Settings): Mifflin–St Jeor BMR × activity factor for maintenance calories, adjusted by your weight goal (lose/maintain/gain) and pace (slow ±250 / moderate ±500 / fast ±750 kcal). Macros come from a carb-preference split (low 40/20/40, moderate 30/40/30, high 25/55/20 — P/C/F). You can also enter fully custom values.
+- **Daily weigh-ins**: log today's weight from the dashboard; shows a 7-day trend.
+- **Weekly auto-adjust**: after two weeks of data, the app compares this week's average weight to last week's against your target pace (0.5/1/1.5 lb ± 0.25). If you're off target **and** your logged intake was close to your goal, it suggests a calorie/macro change — which you can **apply or keep current**. If your logged intake was off-plan, it won't adjust (you didn't follow it). Runs at most once per week.
+
 ## Insights (Phase 7)
 
 - **Dashboard trends** section with week/month toggle
 - **Calorie line chart** with daily goal reference line
 - **Macro bar chart** for protein, carbs, fats, fiber
 - Summary stats: average calories, average protein, days logged
-- **Settings** profile & goals editor (name, units, all macro targets)
+- **Settings** profile & goals editor (name, units, all macro targets, body-stat calculator)
 
 ## Getting started
 
@@ -67,11 +73,14 @@ npm run dev
 
 | Table | Purpose |
 |-------|---------|
-| `profiles` | User goals (calories, protein, carbs, fats, fiber) and preferences |
+| `profiles` | User goals + body stats and goal preferences (sex, age, height, weight, activity, diet, goal direction/intensity) |
 | `foods` | Saved food library (manual, USDA, Open Food Facts) |
 | `log_entries` | Daily food log entries by meal |
+| `weight_entries` | Daily body-weight log (one row per day) used for trend-based goal adjustments |
 
 All tables use Row Level Security — users can only access their own data. A profile row is auto-created when a user signs up (Phase 3).
+
+> The weight log + profile stat columns live in migration `20250627120000_weight_and_goal_stats.sql`. Run it (SQL Editor or `supabase db push`) before using daily weigh-ins and weekly auto-adjust.
 
 ### Optional: Supabase CLI
 

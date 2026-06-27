@@ -6,6 +6,7 @@ import { updateProfile, queryKeys } from '@/lib/api'
 import { useAuth } from '@/providers/AuthProvider'
 import { useProfile } from '@/hooks/useProfile'
 import { GoalCalculator } from '@/components/profile/GoalCalculator'
+import { calcInputsToProfile, type CalcInputs } from '@/lib/goals'
 import type { ProfileUpdate, UnitSystem } from '@/types/database'
 
 const statusLabels = {
@@ -21,6 +22,7 @@ export function SettingsPage() {
   const queryClient = useQueryClient()
   const [editing, setEditing] = useState(false)
   const [showCalc, setShowCalc] = useState(false)
+  const [calcInputs, setCalcInputs] = useState<CalcInputs | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const [name, setName] = useState('')
@@ -61,6 +63,7 @@ export function SettingsPage() {
     setFatsGoal(String(profile.fats_goal))
     setFiberGoal(String(profile.fiber_goal))
     setShowCalc(false)
+    setCalcInputs(null)
     setEditing(true)
     setError(null)
   }
@@ -75,8 +78,23 @@ export function SettingsPage() {
       carbs_goal: Number(carbsGoal),
       fats_goal: Number(fatsGoal),
       fiber_goal: Number(fiberGoal),
+      // Persist the body stats / goal when the calculator was used this session.
+      ...(calcInputs ? calcInputsToProfile(calcInputs) : {}),
     })
   }
+
+  const calcInitial: Partial<CalcInputs> | undefined = profile
+    ? {
+        sex: profile.sex ?? undefined,
+        age: profile.age ?? undefined,
+        heightCm: profile.height_cm ?? undefined,
+        weightKg: profile.weight_kg ?? undefined,
+        activity: profile.activity_level ?? undefined,
+        diet: profile.diet_type ?? undefined,
+        goal: profile.goal_direction ?? undefined,
+        intensity: profile.intensity ?? undefined,
+      }
+    : undefined
 
   async function handleSignOut() {
     await signOut()
@@ -196,13 +214,15 @@ export function SettingsPage() {
                 <div className="mt-3">
                   <GoalCalculator
                     units={units}
+                    initial={calcInitial}
                     applyLabel="Use these goals"
-                    onApply={(goals) => {
+                    onApply={(goals, inputs) => {
                       setCalorieGoal(String(goals.calorie_goal))
                       setProteinGoal(String(goals.protein_goal))
                       setCarbsGoal(String(goals.carbs_goal))
                       setFatsGoal(String(goals.fats_goal))
                       setFiberGoal(String(goals.fiber_goal))
+                      setCalcInputs(inputs)
                       setShowCalc(false)
                     }}
                   />
