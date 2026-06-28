@@ -42,7 +42,7 @@ Get a free USDA API key at [fdc.nal.usda.gov/api-key-signup](https://fdc.nal.usd
 
 ## PWA & offline (Phase 8)
 
-- **Installable** via `vite-plugin-pwa` — web manifest, theme color, and a branded maskable icon (`public/pwa-icon.svg`). Use your browser's "Add to Home Screen" / "Install app".
+- **Installable** via `vite-plugin-pwa` — web manifest, theme color, and a branded icon set. The brand source is `public/pwa-icon.svg`; PNG icons (64/192/512, a maskable 512, a 180px Apple touch icon) and `favicon.ico` are generated from it with `@vite-pwa/assets-generator` (`npm run generate-pwa-assets`) so installs look crisp on every platform, including iOS. Use your browser's "Add to Home Screen" / "Install app".
 - **Service worker caching** (Workbox): the app shell is precached; runtime caching covers USDA (`NetworkFirst`), Open Food Facts (`StaleWhileRevalidate`), and Supabase REST reads (`NetworkFirst`). Auth and the AI edge function are never cached.
 - **Offline logging queue**: when you're offline (or a save can't reach the server), log entries are stored on-device (localStorage) and shown in the log marked "Saved offline · will sync". They sync automatically when connectivity returns.
 - **Status bar**: a slim bar under the header shows offline state, pending-sync count, and an in-app **"new version available → Reload"** prompt when the service worker updates.
@@ -115,7 +115,7 @@ supabase secrets set OPENAI_API_KEY=sk-...
 supabase functions deploy ai-meal
 ```
 
-The function uses OpenAI `gpt-4o-mini` with vision + structured (JSON schema)
+The function uses OpenAI `gpt-5.4-nano` with vision + structured (JSON schema)
 output. Uploaded photos are downscaled in the browser before upload to limit
 payload size and cost. Until the function is deployed, the rest of the app
 (search, scan, manual entry) works as normal.
@@ -129,11 +129,44 @@ payload size and cost. Until the function is deployed, the rest of the app
 | `VITE_USDA_API_KEY` | USDA FoodData Central API key |
 | `OPENAI_API_KEY` | OpenAI key — set as a **Supabase function secret**, not a `VITE_` var (see AI features setup) |
 
+## Testing
+
+Unit tests (Vitest) cover the pure logic: macro scaling/units, the BMR/TDEE/macro
+goal math, the weekly calorie auto-adjust algorithm, and the food-search
+normalizers.
+
+```bash
+npm test          # run once
+npm run test:watch
+```
+
+## Deployment
+
+The app is a static SPA + a Supabase Edge Function.
+
+1. **Frontend** — deploy the Vite build (output: `dist/`) to any static host. Config
+   files are included for the two common options:
+   - **Vercel** — `vercel.json` (build command, output dir, SPA rewrite, cache headers).
+   - **Netlify** — `netlify.toml` (build, publish dir, SPA redirect, cache headers).
+   Both keep `sw.js` / `manifest.webmanifest` uncached so updates roll out instantly,
+   and cache hashed `/assets/*` immutably. For other hosts, set the build command to
+   `npm run build`, publish `dist/`, and add a catch-all rewrite to `/index.html`.
+2. **Environment variables** — set `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and
+   `VITE_USDA_API_KEY` in the host's project settings (they're inlined at build time).
+3. **Backend** — run the SQL migrations and deploy the `ai-meal` function with its
+   `OPENAI_API_KEY` secret (see above). Add your deployed origin to Supabase
+   **Authentication → URL Configuration** (Site URL + redirect URLs).
+4. **Audit** — after deploy, run a Lighthouse PWA audit (Chrome DevTools → Lighthouse)
+   against the production URL to confirm installability and performance.
+
 ## Scripts
 
 | Command | Description |
 |---------|-------------|
-| `npm run dev` | Start dev server |
-| `npm run build` | Production build |
-| `npm run preview` | Preview production build |
+| `npm run dev` | Start dev server (HTTPS, LAN host) |
+| `npm run build` | Production build (type-check + bundle + PWA) |
+| `npm run preview` | Preview production build (test PWA/offline here) |
+| `npm test` | Run unit tests once |
+| `npm run test:watch` | Run unit tests in watch mode |
+| `npm run generate-pwa-assets` | Regenerate PNG/ICO icons from `public/pwa-icon.svg` |
 | `npm run supabase:types` | Regenerate TypeScript types from linked Supabase project |

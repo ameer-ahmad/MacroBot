@@ -15,7 +15,10 @@ export default defineConfig({
     basicSsl(),
     VitePWA({
       registerType: 'prompt',
-      includeAssets: ['favicon.svg', 'pwa-icon.svg'],
+      pwaAssets: {
+        config: true,
+        overrideManifestIcons: true,
+      },
       manifest: {
         name: 'MacroBot — Calorie & Macro Tracker',
         short_name: 'MacroBot',
@@ -28,18 +31,9 @@ export default defineConfig({
         start_url: '/',
         scope: '/',
         categories: ['health', 'fitness', 'lifestyle'],
-        icons: [
-          { src: 'pwa-icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
-          {
-            src: 'pwa-icon.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
-            purpose: 'maskable',
-          },
-        ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,woff2}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
         navigateFallback: '/index.html',
         // Don't let the SW intercept Supabase auth or the AI edge function.
         navigateFallbackDenylist: [/^\/api/, /\/auth\//, /\/functions\//],
