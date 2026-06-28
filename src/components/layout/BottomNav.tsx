@@ -10,7 +10,7 @@ const navItems = [
 export function BottomNav() {
   return (
     <nav
-      className="fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-lg rounded-2xl border border-border bg-card/90 shadow-lg backdrop-blur-md"
+      className="fixed bottom-[calc(1rem_+_env(safe-area-inset-bottom))] left-4 right-4 z-30 mx-auto max-w-lg rounded-2xl border border-border bg-card/90 shadow-lg backdrop-blur-md"
       aria-label="Main navigation"
     >
       <ul className="flex items-center justify-around px-2 py-2">

@@ -19,7 +19,7 @@ export function AppShell() {
         <StatusBar />
       </header>
 
-      <main className="mx-auto w-full max-w-lg flex-1 px-4 pb-28 pt-4">
+      <main className="mx-auto w-full max-w-lg flex-1 px-4 pb-[calc(7rem_+_env(safe-area-inset-bottom))] pt-4">
         <Outlet />
       </main>
 

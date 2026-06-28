@@ -29,7 +29,7 @@ export function FoodPreview({
   const isSaved = food.key.startsWith('saved:')
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/40 p-4 sm:items-center">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/40 p-4 pb-[calc(1rem_+_env(safe-area-inset-bottom))] sm:items-center sm:pb-4">
       <div
         className="w-full max-w-lg rounded-2xl border border-border bg-card shadow-xl"
         role="dialog"
