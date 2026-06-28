@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom'
 import { BottomNav } from './BottomNav'
+import { StatusBar } from './StatusBar'
 import { ThemeToggle } from './ThemeToggle'
 
 export function AppShell() {
@@ -15,6 +16,7 @@ export function AppShell() {
           </div>
           <ThemeToggle />
         </div>
+        <StatusBar />
       </header>
 
       <main className="mx-auto w-full max-w-lg flex-1 px-4 pb-28 pt-4">

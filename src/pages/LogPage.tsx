@@ -8,6 +8,7 @@ import { useDailyTotals } from '@/hooks/useLogEntries'
 import { useProfile } from '@/hooks/useProfile'
 import { MEAL_LABELS, MEAL_ORDER, sumMacros } from '@/lib/api'
 import { macroRemaining, toDateString } from '@/lib/macros'
+import type { DisplayLogEntry } from '@/lib/offlineQueue'
 import type { LogEntry, MealType } from '@/types/database'
 import { formatMacro } from '@/types/food'
 
@@ -35,7 +36,7 @@ export function LogPage() {
       acc[meal] = entries.filter((e) => e.meal === meal)
       return acc
     },
-    {} as Record<MealType, LogEntry[]>,
+    {} as Record<MealType, DisplayLogEntry[]>,
   )
 
   return (
@@ -124,13 +125,23 @@ export function LogPage() {
                     <li key={entry.id}>
                       <button
                         type="button"
-                        onClick={() => setEditingEntry(entry)}
-                        className="flex w-full cursor-pointer items-center justify-between rounded-lg border border-border px-3 py-2.5 text-left transition-colors duration-200 hover:border-primary hover:bg-accent"
+                        onClick={() => {
+                          if (!entry.__pending) setEditingEntry(entry)
+                        }}
+                        aria-disabled={entry.__pending}
+                        className={[
+                          'flex w-full items-center justify-between rounded-lg border border-border px-3 py-2.5 text-left transition-colors duration-200',
+                          entry.__pending
+                            ? 'cursor-default opacity-70'
+                            : 'cursor-pointer hover:border-primary hover:bg-accent',
+                        ].join(' ')}
                       >
                         <div className="min-w-0">
                           <p className="truncate font-medium text-foreground">{entry.name}</p>
                           <p className="text-xs text-muted">
-                            {entry.quantity} × {entry.serving_unit}
+                            {entry.__pending
+                              ? 'Saved offline · will sync'
+                              : `${entry.quantity} × ${entry.serving_unit}`}
                           </p>
                         </div>
                         <span className="shrink-0 text-sm font-medium text-foreground">

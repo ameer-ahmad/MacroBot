@@ -7,7 +7,8 @@ import { FoodResultCard } from '@/components/food/FoodResultCard'
 import { AiAssistant } from '@/components/log/AiAssistant'
 import { useBarcodeLookup } from '@/hooks/useBarcodeLookup'
 import { useDebounce } from '@/hooks/useDebounce'
-import { createLogEntry, MEAL_LABELS, MEAL_ORDER, queryKeys } from '@/lib/api'
+import { MEAL_LABELS, MEAL_ORDER, queryKeys } from '@/lib/api'
+import { createLogEntryQueued } from '@/lib/offlineQueue'
 import { searchLoggableFoods } from '@/lib/foodSearch'
 import { amountFieldConfig, macrosForAmount, scaleMacros } from '@/lib/macros'
 import { fetchUsdaFood, isUsdaConfigured } from '@/lib/usda'
@@ -63,7 +64,7 @@ export function AddFoodFlow({
   })
 
   const mutation = useMutation({
-    mutationFn: createLogEntry,
+    mutationFn: createLogEntryQueued,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.logEntries(date) })
       queryClient.invalidateQueries({ queryKey: queryKeys.dailyTotals(date) })

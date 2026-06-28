@@ -8,13 +8,8 @@ import {
   type AiLabelFood,
   type AiMealItem,
 } from '@/lib/ai'
-import {
-  createFood,
-  createLogEntry,
-  MEAL_LABELS,
-  MEAL_ORDER,
-  queryKeys,
-} from '@/lib/api'
+import { createFood, MEAL_LABELS, MEAL_ORDER, queryKeys } from '@/lib/api'
+import { createLogEntryQueued } from '@/lib/offlineQueue'
 import type { MealType } from '@/types/database'
 import { formatMacro } from '@/types/food'
 
@@ -181,7 +176,7 @@ function MealTab({
     mutationFn: async (toLog: EditMealItem[]) => {
       for (const item of toLog) {
         const amount = Number(item.amount) || 1
-        await createLogEntry({
+        await createLogEntryQueued({
           logged_date: date,
           meal,
           food_id: null,

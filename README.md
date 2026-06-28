@@ -40,6 +40,14 @@ Get a free USDA API key at [fdc.nal.usda.gov/api-key-signup](https://fdc.nal.usd
 - Summary stats: average calories, average protein, days logged
 - **Settings** profile & goals editor (name, units, all macro targets, body-stat calculator)
 
+## PWA & offline (Phase 8)
+
+- **Installable** via `vite-plugin-pwa` — web manifest, theme color, and a branded maskable icon (`public/pwa-icon.svg`). Use your browser's "Add to Home Screen" / "Install app".
+- **Service worker caching** (Workbox): the app shell is precached; runtime caching covers USDA (`NetworkFirst`), Open Food Facts (`StaleWhileRevalidate`), and Supabase REST reads (`NetworkFirst`). Auth and the AI edge function are never cached.
+- **Offline logging queue**: when you're offline (or a save can't reach the server), log entries are stored on-device (localStorage) and shown in the log marked "Saved offline · will sync". They sync automatically when connectivity returns.
+- **Status bar**: a slim bar under the header shows offline state, pending-sync count, and an in-app **"new version available → Reload"** prompt when the service worker updates.
+- The service worker is disabled in `npm run dev`; test PWA behavior with `npm run build && npm run preview`.
+
 ## Getting started
 
 ```bash
