@@ -1,7 +1,12 @@
-import type { Food, FoodInsert, LogEntry } from '@/types/database'
-import type { FoodSearchResult } from '@/types/food'
+import type { Food, FoodInsert, LogEntry, RecipeWithIngredients } from '@/types/database'
+import type { FoodSearchResult, RecipeSearchResult } from '@/types/food'
 import { roundMacro } from '@/types/food'
-import { fetchFoods, fetchRecentLogEntries } from '@/lib/api'
+import {
+  fetchFoods,
+  fetchRecentLogEntries,
+  fetchRecipesWithIngredients,
+  sumMacros,
+} from '@/lib/api'
 import { isUsdaConfigured, searchUsdaFoods } from '@/lib/usda'
 
 export function foodToSearchResult(food: Food): FoodSearchResult {
@@ -82,7 +87,24 @@ export function dedupeRecentFoods(entries: LogEntry[]): FoodSearchResult[] {
   return result
 }
 
+export function recipeToSearchResult(recipe: RecipeWithIngredients): RecipeSearchResult {
+  const totals = sumMacros(recipe.ingredients)
+  return {
+    key: `recipe:${recipe.id}`,
+    id: recipe.id,
+    name: recipe.name,
+    servings: Number(recipe.servings) || 1,
+    ingredientCount: recipe.ingredients.length,
+    calories: roundMacro(totals.calories, 0),
+    protein_g: roundMacro(totals.protein_g),
+    carbs_g: roundMacro(totals.carbs_g),
+    fats_g: roundMacro(totals.fats_g),
+    fiber_g: roundMacro(totals.fiber_g),
+  }
+}
+
 export interface LoggableSearchResult {
+  recipes: RecipeSearchResult[]
   recent: FoodSearchResult[]
   saved: FoodSearchResult[]
   usda: FoodSearchResult[]
@@ -102,19 +124,23 @@ function matchesQuery(food: FoodSearchResult, lowerQuery: string): boolean {
 }
 
 /**
- * Search foods for logging. Returns previously logged items first (ordered by
- * recency), then the user's saved library (e.g. scanned nutrition labels), then
- * USDA database items not already shown. With an empty query, returns the most
- * recent logged foods plus the saved library for quick re-adding.
+ * Search foods for logging. Returns recipes, previously logged items (by
+ * recency), the user's saved library, then USDA items not already shown.
  */
 export async function searchLoggableFoods(query: string): Promise<LoggableSearchResult> {
   const trimmed = query.trim()
   const lowerQuery = trimmed.toLowerCase()
 
-  const [recentEntries, savedRaw] = await Promise.all([
+  const [recentEntries, savedRaw, recipeRaw] = await Promise.all([
     fetchRecentLogEntries().catch(() => [] as LogEntry[]),
     fetchFoods().catch(() => [] as Food[]),
+    fetchRecipesWithIngredients().catch(() => [] as RecipeWithIngredients[]),
   ])
+
+  const recipeResults = recipeRaw
+    .map(recipeToSearchResult)
+    .filter((r) => !lowerQuery || r.name.toLowerCase().includes(lowerQuery))
+  const recipes = trimmed.length === 0 ? recipeResults.slice(0, 15) : recipeResults
 
   const recentFoods = dedupeRecentFoods(recentEntries)
   const recent = (
@@ -137,7 +163,7 @@ export async function searchLoggableFoods(query: string): Promise<LoggableSearch
     usda = usdaResults.filter((food) => !shownNames.has(food.name.toLowerCase()))
   }
 
-  return { recent, saved, usda }
+  return { recipes, recent, saved, usda }
 }
 
 export const SOURCE_LABELS: Record<FoodSearchResult['source'], string> = {

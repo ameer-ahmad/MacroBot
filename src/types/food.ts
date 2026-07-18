@@ -24,6 +24,20 @@ export interface FoodSearchResult {
   foodId?: string | null
 }
 
+/** Lightweight recipe card for search / add-food lists. */
+export interface RecipeSearchResult {
+  key: string
+  id: string
+  name: string
+  servings: number
+  ingredientCount: number
+  calories: number
+  protein_g: number
+  carbs_g: number
+  fats_g: number
+  fiber_g: number
+}
+
 export function roundMacro(value: number, decimals = 1): number {
   const factor = 10 ** decimals
   return Math.round(value * factor) / factor

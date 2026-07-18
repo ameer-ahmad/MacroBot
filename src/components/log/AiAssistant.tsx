@@ -22,10 +22,27 @@ export function AiAssistant({
   date,
   initialMeal = 'snack',
   onClose,
+  mode = 'log',
+  onAddIngredients,
 }: {
   date: string
   initialMeal?: MealType
   onClose: () => void
+  /** When `recipe`, meal analysis adds ingredients instead of logging. */
+  mode?: 'log' | 'recipe'
+  onAddIngredients?: (
+    items: Array<{
+      name: string
+      quantity: number
+      serving_unit: string
+      calories: number
+      protein_g: number
+      carbs_g: number
+      fats_g: number
+      fiber_g: number
+      food_id: string | null
+    }>,
+  ) => void
 }) {
   const [tab, setTab] = useState<AiTab>('meal')
 
@@ -57,7 +74,13 @@ export function AiAssistant({
       </div>
 
       {tab === 'meal' ? (
-        <MealTab date={date} initialMeal={initialMeal} onClose={onClose} />
+        <MealTab
+          date={date}
+          initialMeal={initialMeal}
+          onClose={onClose}
+          mode={mode}
+          onAddIngredients={onAddIngredients}
+        />
       ) : (
         <LabelTab onClose={onClose} />
       )}
@@ -159,10 +182,26 @@ function MealTab({
   date,
   initialMeal,
   onClose,
+  mode = 'log',
+  onAddIngredients,
 }: {
   date: string
   initialMeal: MealType
   onClose: () => void
+  mode?: 'log' | 'recipe'
+  onAddIngredients?: (
+    items: Array<{
+      name: string
+      quantity: number
+      serving_unit: string
+      calories: number
+      protein_g: number
+      carbs_g: number
+      fats_g: number
+      fiber_g: number
+      food_id: string | null
+    }>,
+  ) => void
 }) {
   const queryClient = useQueryClient()
   const [meal, setMeal] = useState<MealType>(initialMeal)
@@ -171,9 +210,30 @@ function MealTab({
   const [analyzing, setAnalyzing] = useState(false)
   const [items, setItems] = useState<EditMealItem[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const isRecipe = mode === 'recipe'
 
   const logMutation = useMutation({
     mutationFn: async (toLog: EditMealItem[]) => {
+      if (isRecipe && onAddIngredients) {
+        onAddIngredients(
+          toLog.map((item) => {
+            const amount = Number(item.amount) || 1
+            return {
+              name: item.name,
+              quantity: amount,
+              serving_unit: item.unit?.trim() || 'serving',
+              calories: round(item.calories),
+              protein_g: round(item.protein_g),
+              carbs_g: round(item.carbs_g),
+              fats_g: round(item.fats_g),
+              fiber_g: round(item.fiber_g),
+              food_id: null,
+            }
+          }),
+        )
+        return
+      }
+
       for (const item of toLog) {
         const amount = Number(item.amount) || 1
         await createLogEntryQueued({
@@ -193,10 +253,12 @@ function MealTab({
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.logEntries(date) })
-      queryClient.invalidateQueries({ queryKey: queryKeys.dailyTotals(date) })
-      queryClient.invalidateQueries({ queryKey: queryKeys.recentFoods })
-      onClose()
+      if (!isRecipe) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.logEntries(date) })
+        queryClient.invalidateQueries({ queryKey: queryKeys.dailyTotals(date) })
+        queryClient.invalidateQueries({ queryKey: queryKeys.recentFoods })
+        onClose()
+      }
     },
     onError: (err) =>
       setError(err instanceof Error ? err.message : 'Failed to log items.'),
@@ -347,31 +409,35 @@ function MealTab({
 
         {items && (
           <>
-            <div>
-              <span className="mb-1.5 block text-sm font-medium text-foreground">
-                Meal
-              </span>
-              <div className="grid grid-cols-2 gap-2">
-                {MEAL_ORDER.map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => setMeal(m)}
-                    className={[
-                      'cursor-pointer rounded-xl border px-3 py-2 text-sm font-medium transition-colors duration-200',
-                      meal === m
-                        ? 'border-primary bg-accent text-primary'
-                        : 'border-border text-muted hover:text-foreground',
-                    ].join(' ')}
-                  >
-                    {MEAL_LABELS[m]}
-                  </button>
-                ))}
+            {!isRecipe && (
+              <div>
+                <span className="mb-1.5 block text-sm font-medium text-foreground">
+                  Meal
+                </span>
+                <div className="grid grid-cols-2 gap-2">
+                  {MEAL_ORDER.map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setMeal(m)}
+                      className={[
+                        'cursor-pointer rounded-xl border px-3 py-2 text-sm font-medium transition-colors duration-200',
+                        meal === m
+                          ? 'border-primary bg-accent text-primary'
+                          : 'border-border text-muted hover:text-foreground',
+                      ].join(' ')}
+                    >
+                      {MEAL_LABELS[m]}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             <p className="text-xs text-muted">
-              Review the AI estimate and tweak anything before logging.
+              {isRecipe
+                ? 'Review the AI estimate and tweak anything before adding to the recipe.'
+                : 'Review the AI estimate and tweak anything before logging.'}
             </p>
 
             {items.map((item, index) => (
@@ -479,8 +545,12 @@ function MealTab({
             className="flex-1 cursor-pointer rounded-xl bg-primary px-4 py-3 font-semibold text-primary-foreground disabled:opacity-50"
           >
             {logMutation.isPending
-              ? 'Logging…'
-              : `Log ${items.length} item${items.length > 1 ? 's' : ''}`}
+              ? isRecipe
+                ? 'Adding…'
+                : 'Logging…'
+              : isRecipe
+                ? `Add ${items.length} item${items.length > 1 ? 's' : ''} to recipe`
+                : `Log ${items.length} item${items.length > 1 ? 's' : ''}`}
           </button>
         </div>
       )}

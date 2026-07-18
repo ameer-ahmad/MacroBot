@@ -1,5 +1,5 @@
-import { createLogEntry } from '@/lib/api'
-import type { LogEntry, LogEntryInsert } from '@/types/database'
+import { createLogEntry, scaleRecipeForLog } from '@/lib/api'
+import type { LogEntry, LogEntryInsert, MealType, RecipeWithIngredients } from '@/types/database'
 
 // Lightweight offline queue for food log entries. When the device is offline (or
 // a create request fails due to the network), the entry payload is stored in
@@ -109,6 +109,41 @@ export async function createLogEntryQueued(
     }
     throw err
   }
+}
+
+/**
+ * Expand a recipe into one log entry per ingredient (scaled by servings).
+ * Uses the offline queue when any create cannot reach the server.
+ */
+export async function logRecipeQueued(input: {
+  recipe: RecipeWithIngredients
+  date: string
+  meal: MealType
+  servings: number
+}): Promise<{ queued: boolean; count: number }> {
+  if (input.recipe.ingredients.length === 0) throw new Error('Recipe has no ingredients')
+
+  const scaled = scaleRecipeForLog(input.recipe, input.servings)
+  let anyQueued = false
+
+  for (const item of scaled) {
+    const result = await createLogEntryQueued({
+      logged_date: input.date,
+      meal: input.meal,
+      food_id: item.food_id,
+      name: item.name,
+      quantity: item.quantity,
+      serving_unit: item.serving_unit,
+      calories: item.calories,
+      protein_g: item.protein_g,
+      carbs_g: item.carbs_g,
+      fats_g: item.fats_g,
+      fiber_g: item.fiber_g,
+    })
+    if (result.queued) anyQueued = true
+  }
+
+  return { queued: anyQueued, count: scaled.length }
 }
 
 function isNetworkError(err: unknown): boolean {

@@ -119,6 +119,90 @@ export interface Database {
         }
         Relationships: []
       }
+      recipes: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          notes: string | null
+          servings: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          notes?: string | null
+          servings?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          notes?: string | null
+          servings?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      recipe_ingredients: {
+        Row: {
+          id: string
+          recipe_id: string
+          user_id: string
+          food_id: string | null
+          name: string
+          quantity: number
+          serving_unit: string
+          calories: number
+          protein_g: number
+          carbs_g: number
+          fats_g: number
+          fiber_g: number
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          recipe_id: string
+          user_id: string
+          food_id?: string | null
+          name: string
+          quantity?: number
+          serving_unit?: string
+          calories?: number
+          protein_g?: number
+          carbs_g?: number
+          fats_g?: number
+          fiber_g?: number
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          recipe_id?: string
+          user_id?: string
+          food_id?: string | null
+          name?: string
+          quantity?: number
+          serving_unit?: string
+          calories?: number
+          protein_g?: number
+          carbs_g?: number
+          fats_g?: number
+          fiber_g?: number
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       foods: {
         Row: {
           id: string
@@ -253,3 +337,12 @@ export type LogEntry = Database['public']['Tables']['log_entries']['Row']
 export type LogEntryInsert = Database['public']['Tables']['log_entries']['Insert']
 export type WeightEntry = Database['public']['Tables']['weight_entries']['Row']
 export type WeightEntryInsert = Database['public']['Tables']['weight_entries']['Insert']
+export type Recipe = Database['public']['Tables']['recipes']['Row']
+export type RecipeInsert = Database['public']['Tables']['recipes']['Insert']
+export type RecipeIngredient = Database['public']['Tables']['recipe_ingredients']['Row']
+export type RecipeIngredientInsert = Database['public']['Tables']['recipe_ingredients']['Insert']
+
+/** Recipe with nested ingredients for detail views. */
+export type RecipeWithIngredients = Recipe & {
+  ingredients: RecipeIngredient[]
+}

@@ -17,6 +17,7 @@ The **Log** tab is the single place to add food. It shows your daily log grouped
 - **Search** — results show your previously logged foods first (ordered by recency), then **USDA FoodData Central** items you haven't logged before. All results match what you type.
 - **Scan** — camera barcode scanning via Open Food Facts.
 - **AI** — describe a meal in plain language (e.g. _"4 eggs cooked in 5g of butter"_) and/or attach a food photo; the assistant estimates each item's macros for you to review and log. A **Nutrition label** tab reads a photo of a label and saves that food to your library.
+- **Recipe** — build a multi-ingredient recipe (search, scan, AI, or manual for each ingredient), save it, then log it later. Logging a recipe expands into separate log entries per ingredient.
 - **Manual** — enter a name and macros directly.
 
 After choosing a food, set the quantity and meal, then add it to the log. Tap any logged entry to edit quantity/meal or delete it.
@@ -84,11 +85,14 @@ npm run dev
 | `profiles` | User goals + body stats and goal preferences (sex, age, height, weight, activity, diet, goal direction/intensity) |
 | `foods` | Saved food library (manual, USDA, Open Food Facts) |
 | `log_entries` | Daily food log entries by meal |
+| `recipes` / `recipe_ingredients` | Multi-ingredient recipes; logging expands into one log entry per ingredient |
 | `weight_entries` | Daily body-weight log (one row per day) used for trend-based goal adjustments |
 
 All tables use Row Level Security — users can only access their own data. A profile row is auto-created when a user signs up (Phase 3).
 
 > The weight log + profile stat columns live in migration `20250627120000_weight_and_goal_stats.sql`. Run it (SQL Editor or `supabase db push`) before using daily weigh-ins and weekly auto-adjust.
+>
+> Recipes live in migration `20260718120000_recipes.sql` (`recipes` + `recipe_ingredients`). Run it before creating or logging recipes.
 
 ### Optional: Supabase CLI
 
