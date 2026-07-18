@@ -225,6 +225,34 @@ export async function deleteWeightEntry(id: string): Promise<void> {
   if (error) throw error
 }
 
+/**
+ * Delete all food log entries and weight logs for the current user.
+ * Does not touch profile goals or the saved food library.
+ */
+export async function resetLoggedData(): Promise<void> {
+  const supabase = getSupabase()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const [{ error: logError }, { error: weightError }] = await Promise.all([
+    supabase.from('log_entries').delete().eq('user_id', user.id),
+    supabase.from('weight_entries').delete().eq('user_id', user.id),
+  ])
+
+  if (logError) throw logError
+  if (weightError) throw weightError
+
+  // Clear weekly-adjustment cooldown so it can re-evaluate after new data.
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .update({ last_adjustment_date: null })
+    .eq('id', user.id)
+
+  if (profileError) throw profileError
+}
+
 export function sumMacros(entries: Pick<LogEntry, keyof Macros>[]) {
   return entries.reduce(
     (totals, entry) => ({

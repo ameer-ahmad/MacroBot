@@ -77,6 +77,11 @@ export function removePending(id: string): void {
   write(read().filter((e) => e.id !== id))
 }
 
+/** Drop every pending offline log entry (used when resetting logged data). */
+export function clearPendingEntries(): void {
+  write([])
+}
+
 function isOffline(): boolean {
   return typeof navigator !== 'undefined' && navigator.onLine === false
 }

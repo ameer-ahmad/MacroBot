@@ -1,20 +1,13 @@
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { LogOut } from 'lucide-react'
-import { checkSupabaseConnection } from '@/lib/supabase'
-import { updateProfile, queryKeys } from '@/lib/api'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { LogOut, Trash2 } from 'lucide-react'
+import { resetLoggedData, updateProfile, queryKeys } from '@/lib/api'
+import { clearPendingEntries } from '@/lib/offlineQueue'
 import { useAuth } from '@/providers/AuthProvider'
 import { useProfile } from '@/hooks/useProfile'
 import { GoalCalculator } from '@/components/profile/GoalCalculator'
 import { calcInputsToProfile, type CalcInputs } from '@/lib/goals'
 import type { ProfileUpdate, UnitSystem } from '@/types/database'
-
-const statusLabels = {
-  not_configured: { label: 'Not configured', className: 'text-carbs' },
-  connected: { label: 'Connected', className: 'text-primary' },
-  error: { label: 'Connection error', className: 'text-fats' },
-  loading: { label: 'Checking…', className: 'text-muted' },
-} as const
 
 export function SettingsPage() {
   const { user, signOut } = useAuth()
@@ -24,6 +17,8 @@ export function SettingsPage() {
   const [showCalc, setShowCalc] = useState(false)
   const [calcInputs, setCalcInputs] = useState<CalcInputs | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [confirmReset, setConfirmReset] = useState(false)
+  const [resetMessage, setResetMessage] = useState<string | null>(null)
 
   const [name, setName] = useState('')
   const [units, setUnits] = useState<UnitSystem>('metric')
@@ -32,14 +27,6 @@ export function SettingsPage() {
   const [carbsGoal, setCarbsGoal] = useState('')
   const [fatsGoal, setFatsGoal] = useState('')
   const [fiberGoal, setFiberGoal] = useState('')
-
-  const { data: status = 'loading' } = useQuery({
-    queryKey: ['supabase-status'],
-    queryFn: checkSupabaseConnection,
-    staleTime: 30_000,
-  })
-
-  const connection = statusLabels[status]
 
   const saveMutation = useMutation({
     mutationFn: (updates: ProfileUpdate) => updateProfile(updates),
@@ -96,6 +83,21 @@ export function SettingsPage() {
       }
     : undefined
 
+  const resetMutation = useMutation({
+    mutationFn: async () => {
+      clearPendingEntries()
+      await resetLoggedData()
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries()
+      setConfirmReset(false)
+      setResetMessage('All food logs and weight entries were deleted.')
+    },
+    onError: (err) => {
+      setResetMessage(err instanceof Error ? err.message : 'Failed to reset data')
+    },
+  })
+
   async function handleSignOut() {
     await signOut()
   }
@@ -130,12 +132,61 @@ export function SettingsPage() {
         </button>
       </section>
 
-      <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-        <h3 className="font-semibold text-foreground">Database</h3>
-        <div className="mt-3 flex items-center justify-between text-sm">
-          <span className="text-muted">Supabase</span>
-          <span className={`font-medium ${connection.className}`}>{connection.label}</span>
-        </div>
+      <section className="rounded-2xl border border-fats/30 bg-card p-4 shadow-sm">
+        <h3 className="font-semibold text-foreground">Reset logged data</h3>
+        <p className="mt-2 text-sm text-muted">
+          Permanently deletes every food log entry and weight entry. Your goals, account, and
+          saved food library are kept.
+        </p>
+
+        {resetMessage && (
+          <p
+            className={[
+              'mt-3 text-sm',
+              resetMutation.isError ? 'text-fats' : 'text-primary',
+            ].join(' ')}
+          >
+            {resetMessage}
+          </p>
+        )}
+
+        {!confirmReset ? (
+          <button
+            type="button"
+            onClick={() => {
+              setResetMessage(null)
+              setConfirmReset(true)
+            }}
+            className="mt-4 flex cursor-pointer items-center gap-2 rounded-xl border border-fats/40 px-4 py-2.5 text-sm font-medium text-fats transition-colors duration-200 hover:bg-fats/10"
+          >
+            <Trash2 className="h-4 w-4" aria-hidden="true" />
+            Reset all logged data
+          </button>
+        ) : (
+          <div className="mt-4 space-y-3">
+            <p className="text-sm font-medium text-fats">
+              This cannot be undone. Delete all food logs and weight history?
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={resetMutation.isPending}
+                onClick={() => resetMutation.mutate()}
+                className="cursor-pointer rounded-xl bg-fats px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                {resetMutation.isPending ? 'Deleting…' : 'Yes, delete everything'}
+              </button>
+              <button
+                type="button"
+                disabled={resetMutation.isPending}
+                onClick={() => setConfirmReset(false)}
+                className="cursor-pointer rounded-xl border border-border px-4 py-2.5 text-sm text-muted"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </section>
 
       <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
