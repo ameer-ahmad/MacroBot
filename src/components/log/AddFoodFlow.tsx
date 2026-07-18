@@ -295,7 +295,6 @@ export function AddFoodFlow({
                   placeholder="Search your foods or USDA…"
                   className="w-full rounded-xl border border-border bg-background py-2.5 pl-10 pr-4 text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   aria-label="Search foods"
-                  autoFocus
                 />
               </div>
             </div>
