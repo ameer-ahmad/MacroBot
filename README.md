@@ -119,7 +119,7 @@ supabase secrets set OPENAI_API_KEY=sk-...
 supabase functions deploy ai-meal
 ```
 
-The function uses OpenAI `gpt-5.4-nano` with vision + structured (JSON schema)
+The function uses OpenAI `gpt-6-luna` with vision + structured (JSON schema)
 output. Uploaded photos are downscaled in the browser before upload to limit
 payload size and cost. Until the function is deployed, the rest of the app
 (search, scan, manual entry) works as normal.

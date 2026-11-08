@@ -8,7 +8,7 @@
 // Secret:  supabase secrets set OPENAI_API_KEY=sk-...
 
 const OPENAI_URL = 'https://api.openai.com/v1/chat/completions'
-const MODEL = 'gpt-5.4-nano'
+const MODEL = 'gpt-6-luna'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -158,7 +158,6 @@ async function callOpenAi(
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      // GPT-5 nano only supports the default temperature, so it is omitted.
       model: MODEL,
       messages: [
         { role: 'system', content: system },
