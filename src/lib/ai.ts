@@ -49,15 +49,14 @@ export async function compressImage(
   quality = 0.8,
 ): Promise<string> {
   const dataUrl = await readFileAsDataUrl(file)
+  const img = new Image()
+  await new Promise<void>((resolve, reject) => {
+    img.onload = () => resolve()
+    img.onerror = () => reject(new Error('Could not open that photo. Try a JPG or PNG image.'))
+    img.src = dataUrl
+  })
 
   try {
-    const img = new Image()
-    await new Promise<void>((resolve, reject) => {
-      img.onload = () => resolve()
-      img.onerror = () => reject(new Error('Unsupported image format.'))
-      img.src = dataUrl
-    })
-
     let { width, height } = img
     if (width > maxDim || height > maxDim) {
       const scale = maxDim / Math.max(width, height)

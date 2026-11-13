@@ -1,6 +1,6 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, type ChangeEvent } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { ImagePlus, Loader2, Sparkles, Trash2, X } from 'lucide-react'
+import { Camera, ImagePlus, Loader2, Sparkles, Trash2, X } from 'lucide-react'
 import {
   analyzeLabel,
   analyzeMeal,
@@ -17,6 +17,8 @@ type AiTab = 'meal' | 'label'
 
 const inputClass =
   'w-full rounded-xl border border-border bg-background px-3 py-2.5 text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20'
+const photoButtonClass =
+  'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-background px-2 py-3 text-sm text-muted transition-colors duration-200 hover:border-primary hover:text-foreground disabled:cursor-default disabled:opacity-50'
 
 export function AiAssistant({
   date,
@@ -93,13 +95,24 @@ function ImagePicker({
   onPick,
   onClear,
   label,
+  loading,
+  disabled,
 }: {
   preview: string | null
   onPick: (file: File) => void
   onClear: () => void
   label: string
+  loading: boolean
+  disabled: boolean
 }) {
-  const inputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
+  const uploadInputRef = useRef<HTMLInputElement>(null)
+
+  function handleChange({ currentTarget }: ChangeEvent<HTMLInputElement>) {
+    const file = currentTarget.files?.[0]
+    currentTarget.value = ''
+    if (file) onPick(file)
+  }
 
   if (preview) {
     return (
@@ -108,7 +121,8 @@ function ImagePicker({
         <button
           type="button"
           onClick={onClear}
-          className="absolute right-2 top-2 cursor-pointer rounded-full bg-foreground/60 p-1.5 text-background hover:bg-foreground/80"
+          disabled={disabled}
+          className="absolute right-2 top-2 cursor-pointer rounded-full bg-foreground/60 p-1.5 text-background hover:bg-foreground/80 disabled:opacity-50"
           aria-label="Remove photo"
         >
           <X className="h-4 w-4" />
@@ -118,29 +132,74 @@ function ImagePicker({
   }
 
   return (
-    <>
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        className="flex w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-background px-3 py-6 text-sm text-muted transition-colors duration-200 hover:border-primary hover:text-foreground"
-      >
-        <ImagePlus className="h-6 w-6" aria-hidden="true" />
-        {label}
-      </button>
+    <fieldset>
+      <legend className="mb-2 text-sm font-medium text-foreground">{label}</legend>
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={() => cameraInputRef.current?.click()}
+          disabled={loading || disabled}
+          className={photoButtonClass}
+        >
+          <Camera className="h-5 w-5" aria-hidden="true" />
+          Take photo
+        </button>
+        <button
+          type="button"
+          onClick={() => uploadInputRef.current?.click()}
+          disabled={loading || disabled}
+          className={photoButtonClass}
+        >
+          <ImagePlus className="h-5 w-5" aria-hidden="true" />
+          Upload photo
+        </button>
+      </div>
       <input
-        ref={inputRef}
+        ref={cameraInputRef}
         type="file"
         accept="image/*"
         capture="environment"
         className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0]
-          if (file) onPick(file)
-          e.target.value = ''
-        }}
+        onChange={handleChange}
       />
-    </>
+      <input
+        ref={uploadInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleChange}
+      />
+      {loading && (
+        <p role="status" className="mt-2 text-sm text-muted">
+          Preparing photo…
+        </p>
+      )}
+    </fieldset>
   )
+}
+
+function usePhoto(setError: (message: string | null) => void) {
+  const [imageDataUrl, setImageDataUrl] = useState<string | null>(null)
+  const [loadingPhoto, setLoadingPhoto] = useState(false)
+
+  async function pickPhoto(file: File) {
+    setError(null)
+    setLoadingPhoto(true)
+    try {
+      setImageDataUrl(await compressImage(file))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not load that image.')
+    } finally {
+      setLoadingPhoto(false)
+    }
+  }
+
+  return {
+    imageDataUrl,
+    loadingPhoto,
+    pickPhoto,
+    clearPhoto: () => setImageDataUrl(null),
+  }
 }
 
 type Macros5 = {
@@ -206,10 +265,10 @@ function MealTab({
   const queryClient = useQueryClient()
   const [meal, setMeal] = useState<MealType>(initialMeal)
   const [text, setText] = useState('')
-  const [imageDataUrl, setImageDataUrl] = useState<string | null>(null)
   const [analyzing, setAnalyzing] = useState(false)
   const [items, setItems] = useState<EditMealItem[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const { imageDataUrl, loadingPhoto, pickPhoto, clearPhoto } = usePhoto(setError)
   const isRecipe = mode === 'recipe'
 
   const logMutation = useMutation({
@@ -263,15 +322,6 @@ function MealTab({
     onError: (err) =>
       setError(err instanceof Error ? err.message : 'Failed to log items.'),
   })
-
-  async function handlePick(file: File) {
-    try {
-      setError(null)
-      setImageDataUrl(await compressImage(file))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not load that image.')
-    }
-  }
 
   async function handleAnalyze() {
     setError(null)
@@ -366,7 +416,7 @@ function MealTab({
     <>
       <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
         {error && (
-          <p className="rounded-xl border border-fats/30 bg-fats/10 px-3 py-2 text-sm text-fats">
+          <p role="alert" className="rounded-xl border border-fats/30 bg-fats/10 px-3 py-2 text-sm text-fats">
             {error}
           </p>
         )}
@@ -386,15 +436,17 @@ function MealTab({
 
             <ImagePicker
               preview={imageDataUrl}
-              onPick={handlePick}
-              onClear={() => setImageDataUrl(null)}
-              label="Add a food photo (optional)"
+              onPick={pickPhoto}
+              onClear={clearPhoto}
+              label="Food photo (optional)"
+              loading={loadingPhoto}
+              disabled={analyzing}
             />
 
             <button
               type="button"
               onClick={handleAnalyze}
-              disabled={analyzing}
+              disabled={analyzing || loadingPhoto}
               className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 font-semibold text-primary-foreground disabled:opacity-50"
             >
               {analyzing ? (
@@ -560,11 +612,11 @@ function MealTab({
 
 function LabelTab({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient()
-  const [imageDataUrl, setImageDataUrl] = useState<string | null>(null)
   const [analyzing, setAnalyzing] = useState(false)
   const [food, setFood] = useState<AiLabelFood | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
+  const { imageDataUrl, loadingPhoto, pickPhoto, clearPhoto } = usePhoto(setError)
 
   const saveMutation = useMutation({
     mutationFn: (value: AiLabelFood) =>
@@ -588,15 +640,6 @@ function LabelTab({ onClose }: { onClose: () => void }) {
     onError: (err) =>
       setError(err instanceof Error ? err.message : 'Failed to save food.'),
   })
-
-  async function handlePick(file: File) {
-    try {
-      setError(null)
-      setImageDataUrl(await compressImage(file))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not load that image.')
-    }
-  }
 
   async function handleAnalyze() {
     setError(null)
@@ -643,7 +686,7 @@ function LabelTab({ onClose }: { onClose: () => void }) {
     <>
       <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
         {error && (
-          <p className="rounded-xl border border-fats/30 bg-fats/10 px-3 py-2 text-sm text-fats">
+          <p role="alert" className="rounded-xl border border-fats/30 bg-fats/10 px-3 py-2 text-sm text-fats">
             {error}
           </p>
         )}
@@ -652,14 +695,16 @@ function LabelTab({ onClose }: { onClose: () => void }) {
           <>
             <ImagePicker
               preview={imageDataUrl}
-              onPick={handlePick}
-              onClear={() => setImageDataUrl(null)}
-              label="Photograph the nutrition label"
+              onPick={pickPhoto}
+              onClear={clearPhoto}
+              label="Nutrition label photo"
+              loading={loadingPhoto}
+              disabled={analyzing}
             />
             <button
               type="button"
               onClick={handleAnalyze}
-              disabled={analyzing || !imageDataUrl}
+              disabled={analyzing || loadingPhoto || !imageDataUrl}
               className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 font-semibold text-primary-foreground disabled:opacity-50"
             >
               {analyzing ? (

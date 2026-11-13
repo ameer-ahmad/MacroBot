@@ -15,8 +15,8 @@ A PWA for tracking calories and macros (protein, carbs, fats, fiber).
 The **Log** tab is the single place to add food. It shows your daily log grouped by meal (breakfast, lunch, dinner, snacks). Tap **Add** on any meal to open the add flow, which offers several ways to add food:
 
 - **Search** — results show your previously logged foods first (ordered by recency), then **USDA FoodData Central** items you haven't logged before. All results match what you type.
-- **Scan** — camera barcode scanning via Open Food Facts.
-- **AI** — describe a meal in plain language (e.g. _"4 eggs cooked in 5g of butter"_) and/or attach a food photo; the assistant estimates each item's macros for you to review and log. A **Nutrition label** tab reads a photo of a label and saves that food to your library.
+- **Scan** — use the camera or upload a barcode photo to look up a product in Open Food Facts.
+- **AI** — describe a meal in plain language (e.g. _"4 eggs cooked in 5g of butter"_), take a food photo, or upload one. The assistant estimates each item's macros for you to review and log. The **Nutrition label** tab lets you take or upload a label photo and save the food to your library.
 - **Recipe** — build a multi-ingredient recipe (search, scan, AI, or manual for each ingredient), save it, then log it later. Logging a recipe expands into separate log entries per ingredient.
 - **Manual** — enter a name and macros directly.
 
@@ -25,7 +25,7 @@ After choosing a food, set the quantity and meal, then add it to the log. Tap an
 - **Date navigation**: prev/next day, tap the date for a calendar, jump to today
 - **Dashboard** shows live totals vs your daily goals
 
-Get a free USDA API key at [fdc.nal.usda.gov/api-key-signup](https://fdc.nal.usda.gov/api-key-signup). Camera access requires HTTPS or `localhost`; if permission is denied, use manual entry.
+Get a free USDA API key at [fdc.nal.usda.gov/api-key-signup](https://fdc.nal.usda.gov/api-key-signup). Camera access requires HTTPS or `localhost`. If camera access is unavailable, you can upload a photo.
 
 ## Goals & weight tracking
 
