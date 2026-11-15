@@ -16,12 +16,10 @@ export function CalendarPopover({
   selected,
   onSelect,
   onClose,
-  maxDate = toDateString(),
 }: {
   selected: string
   onSelect: (date: string) => void
   onClose: () => void
-  maxDate?: string
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const selectedDate = parseDateString(selected)
@@ -117,13 +115,11 @@ export function CalendarPopover({
 
           const isSelected = dateStr === selected
           const isToday = dateStr === today
-          const isDisabled = dateStr > maxDate
 
           return (
             <button
               key={dateStr}
               type="button"
-              disabled={isDisabled}
               onClick={() => {
                 onSelect(dateStr)
                 onClose()
@@ -135,9 +131,7 @@ export function CalendarPopover({
                   : isToday
                     ? 'border border-primary text-primary hover:bg-accent'
                     : 'text-foreground hover:bg-accent',
-                isDisabled && 'cursor-not-allowed opacity-30 hover:bg-transparent',
               ]
-                .filter(Boolean)
                 .join(' ')}
             >
               {Number(dateStr.slice(-2))}

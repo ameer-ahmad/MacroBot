@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   amountFieldConfig,
+  calorieBalanceLabel,
   isGenericServingUnit,
   isWeightUnit,
   macroProgress,
@@ -144,5 +145,11 @@ describe('progress + remaining', () => {
   it('never returns negative remaining', () => {
     expect(macroRemaining(250, 200)).toBe(0)
     expect(macroRemaining(150, 200)).toBe(50)
+  })
+
+  it('labels calorie totals on either side of the goal using the displayed precision', () => {
+    expect(calorieBalanceLabel(2_120, 2_000)).toBe('120 kcal over goal')
+    expect(calorieBalanceLabel(1_880, 2_000)).toBe('120 kcal remaining')
+    expect(calorieBalanceLabel(2_000.4, 2_000)).toBe('At calorie goal')
   })
 })

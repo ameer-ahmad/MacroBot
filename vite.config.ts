@@ -60,13 +60,26 @@ export default defineConfig({
             },
           },
           {
-            // Supabase reads — offline-friendly cache, but never auth/functions.
-            urlPattern: ({ url }) =>
+            // Partition cached REST reads by the bearer token so account switches cannot reuse them.
+            urlPattern: ({ url, request }) =>
               url.hostname.endsWith('.supabase.co') &&
-              url.pathname.startsWith('/rest/v1'),
+              url.pathname.startsWith('/rest/v1/') &&
+              request.headers.has('Authorization'),
             handler: 'NetworkFirst',
             options: {
-              cacheName: 'supabase-rest',
+              cacheName: 'supabase-rest-by-session',
+              plugins: [{
+                cacheKeyWillBeUsed: async ({ request }) => {
+                  const credentials = request.headers.get('Authorization') ?? ''
+                  const accept = request.headers.get('Accept') ?? ''
+                  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${credentials}\n${accept}`))
+                  const url = new URL(request.url)
+                  url.searchParams.set('__session', Array.from(new Uint8Array(hash), (byte) =>
+                    byte.toString(16).padStart(2, '0'),
+                  ).join(''))
+                  return new Request(url)
+                },
+              }],
               networkTimeoutSeconds: 5,
               expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 },
               cacheableResponse: { statuses: [0, 200] },

@@ -9,7 +9,8 @@ import {
   type AiMealItem,
 } from '@/lib/ai'
 import { createFood, MEAL_LABELS, MEAL_ORDER, queryKeys } from '@/lib/api'
-import { createLogEntryQueued } from '@/lib/offlineQueue'
+import { queueLogEntries } from '@/lib/offlineQueue'
+import { useAuth } from '@/providers/AuthProvider'
 import type { MealType } from '@/types/database'
 import { formatMacro } from '@/types/food'
 
@@ -262,7 +263,7 @@ function MealTab({
     }>,
   ) => void
 }) {
-  const queryClient = useQueryClient()
+  const userId = useAuth().user?.id ?? ''
   const [meal, setMeal] = useState<MealType>(initialMeal)
   const [text, setText] = useState('')
   const [analyzing, setAnalyzing] = useState(false)
@@ -272,52 +273,28 @@ function MealTab({
   const isRecipe = mode === 'recipe'
 
   const logMutation = useMutation({
+    networkMode: 'always',
     mutationFn: async (toLog: EditMealItem[]) => {
+      const entries = toLog.map((item) => ({
+        name: item.name,
+        quantity: Number(item.amount) || 1,
+        serving_unit: item.unit?.trim() || 'serving',
+        calories: round(item.calories),
+        protein_g: round(item.protein_g),
+        carbs_g: round(item.carbs_g),
+        fats_g: round(item.fats_g),
+        fiber_g: round(item.fiber_g),
+        food_id: null,
+      }))
       if (isRecipe && onAddIngredients) {
-        onAddIngredients(
-          toLog.map((item) => {
-            const amount = Number(item.amount) || 1
-            return {
-              name: item.name,
-              quantity: amount,
-              serving_unit: item.unit?.trim() || 'serving',
-              calories: round(item.calories),
-              protein_g: round(item.protein_g),
-              carbs_g: round(item.carbs_g),
-              fats_g: round(item.fats_g),
-              fiber_g: round(item.fiber_g),
-              food_id: null,
-            }
-          }),
-        )
+        onAddIngredients(entries)
         return
       }
 
-      for (const item of toLog) {
-        const amount = Number(item.amount) || 1
-        await createLogEntryQueued({
-          logged_date: date,
-          meal,
-          food_id: null,
-          name: item.name,
-          // Store the amount + unit so it can be re-logged at a different amount later.
-          quantity: amount,
-          serving_unit: item.unit?.trim() || 'serving',
-          calories: round(item.calories),
-          protein_g: round(item.protein_g),
-          carbs_g: round(item.carbs_g),
-          fats_g: round(item.fats_g),
-          fiber_g: round(item.fiber_g),
-        })
-      }
+      queueLogEntries(userId, entries.map((entry) => ({ ...entry, logged_date: date, meal })))
     },
     onSuccess: () => {
-      if (!isRecipe) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.logEntries(date) })
-        queryClient.invalidateQueries({ queryKey: queryKeys.dailyTotals(date) })
-        queryClient.invalidateQueries({ queryKey: queryKeys.recentFoods })
-        onClose()
-      }
+      if (!isRecipe) onClose()
     },
     onError: (err) =>
       setError(err instanceof Error ? err.message : 'Failed to log items.'),

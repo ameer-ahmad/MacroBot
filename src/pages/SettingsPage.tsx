@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { LogOut, Trash2 } from 'lucide-react'
 import { resetLoggedData, updateProfile, queryKeys } from '@/lib/api'
-import { clearPendingEntries } from '@/lib/offlineQueue'
+import { resetWithPendingEntries } from '@/lib/offlineQueue'
 import { useAuth } from '@/providers/AuthProvider'
 import { useProfile } from '@/hooks/useProfile'
 import { GoalCalculator } from '@/components/profile/GoalCalculator'
@@ -85,8 +85,8 @@ export function SettingsPage() {
 
   const resetMutation = useMutation({
     mutationFn: async () => {
-      clearPendingEntries()
-      await resetLoggedData()
+      if (!user) throw new Error('Sign in to reset your log.')
+      await resetWithPendingEntries(user.id, () => resetLoggedData(user.id))
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries()

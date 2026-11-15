@@ -118,13 +118,13 @@ export function TrendsSection() {
             <div className="rounded-xl border border-border bg-background px-2 py-2.5">
               <p className="text-xs text-muted">Avg calories</p>
               <p className="mt-0.5 text-sm font-semibold text-foreground">
-                {summary.avgCalories}
+                {summary.daysLogged ? summary.avgCalories : '—'}
               </p>
             </div>
             <div className="rounded-xl border border-border bg-background px-2 py-2.5">
               <p className="text-xs text-muted">Avg protein</p>
               <p className="mt-0.5 text-sm font-semibold text-foreground">
-                {summary.avgProtein}g
+                {summary.daysLogged ? `${summary.avgProtein}g` : '—'}
               </p>
             </div>
             <div className="rounded-xl border border-border bg-background px-2 py-2.5">
@@ -165,6 +165,7 @@ export function TrendsSection() {
                     name="Calories"
                     stroke={CHART_COLORS.calories}
                     strokeWidth={2}
+                    connectNulls={false}
                     dot={{ r: 3, fill: CHART_COLORS.calories }}
                     activeDot={{ r: 5 }}
                   />

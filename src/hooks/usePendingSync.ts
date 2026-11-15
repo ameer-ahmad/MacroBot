@@ -1,33 +1,27 @@
-import { useMemo, useSyncExternalStore } from 'react'
+import { useCallback, useMemo, useSyncExternalStore } from 'react'
 import {
-  getPendingEntries,
-  pendingToDisplayEntry,
+  getPendingBatches,
   subscribePending,
   type DisplayLogEntry,
-  type PendingEntry,
+  type PendingBatch,
 } from '@/lib/offlineQueue'
+import { useAuth } from '@/providers/AuthProvider'
 
-function subscribe(listener: () => void) {
-  return subscribePending(listener)
+export function usePendingBatches(): PendingBatch[] {
+  const userId = useAuth().user?.id
+  const getSnapshot = useCallback(() => getPendingBatches(userId), [userId])
+  return useSyncExternalStore(subscribePending, getSnapshot)
 }
 
-/** All queued (not-yet-synced) entries, reactive to queue changes. */
-export function usePendingEntries(): PendingEntry[] {
-  return useSyncExternalStore(subscribe, getPendingEntries, getPendingEntries)
-}
-
-export function usePendingCount(): number {
-  return usePendingEntries().length
-}
-
-/** Queued entries for a specific date, shaped for optimistic display in the log. */
 export function usePendingDisplayEntries(date: string): DisplayLogEntry[] {
-  const all = usePendingEntries()
+  const batches = usePendingBatches()
   return useMemo(
     () =>
-      all
-        .filter((e) => (e.payload.logged_date ?? '') === date)
-        .map(pendingToDisplayEntry),
-    [all, date],
+      batches.flatMap(({ entries, failed }) =>
+        entries
+          .filter((entry) => entry.logged_date === date)
+          .map((entry): DisplayLogEntry => ({ ...entry, __pending: failed ? 'failed' : 'queued' })),
+      ),
+    [batches, date],
   )
 }

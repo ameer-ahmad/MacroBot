@@ -15,7 +15,7 @@ export function useTrendData(days: TrendRange) {
     queryFn: () => fetchLogEntriesInRange(start, end),
   })
 
-  const series = query.data ? buildTrendSeries(query.data, days) : []
+  const series = query.data ? buildTrendSeries(query.data, days, end) : []
   const summary = buildTrendSummary(series, days)
 
   return {

@@ -12,17 +12,19 @@ A PWA for tracking calories and macros (protein, carbs, fats, fiber).
 
 ## Food logging
 
-The **Log** tab is the single place to add food. It shows your daily log grouped by meal (breakfast, lunch, dinner, snacks). Tap **Add** on any meal to open the add flow, which offers several ways to add food:
+Tap **Log food** on the Dashboard or **Add** beside a meal in the Log to open the add flow:
 
 - **Search** — results show your previously logged foods first (ordered by recency), then **USDA FoodData Central** items you haven't logged before. All results match what you type.
 - **Scan** — use the camera or upload a barcode photo to look up a product in Open Food Facts.
 - **AI** — describe a meal in plain language (e.g. _"4 eggs cooked in 5g of butter"_), take a food photo, or upload one. The assistant estimates each item's macros for you to review and log. The **Nutrition label** tab lets you take or upload a label photo and save the food to your library.
-- **Recipe** — build a multi-ingredient recipe (search, scan, AI, or manual for each ingredient), save it, then log it later. Logging a recipe expands into separate log entries per ingredient.
+- **Recipe** — build and save a multi-ingredient recipe. Logging starts at one serving and saves the scaled ingredients together.
 - **Manual** — enter a name and macros directly.
 
 After choosing a food, set the quantity and meal, then add it to the log. Tap any logged entry to edit quantity/meal or delete it.
 
 - **Date navigation**: prev/next day, tap the date for a calendar, jump to today
+- **Copy a meal**: choose a logged meal, pick a destination date and meal, then adjust portions or remove items before saving
+- **Delete a meal**: use the trash icon beside a meal to review and remove its entries
 - **Dashboard** shows live totals vs your daily goals
 
 Get a free USDA API key at [fdc.nal.usda.gov/api-key-signup](https://fdc.nal.usda.gov/api-key-signup). Camera access requires HTTPS or `localhost`. If camera access is unavailable, you can upload a photo.
@@ -36,7 +38,7 @@ Get a free USDA API key at [fdc.nal.usda.gov/api-key-signup](https://fdc.nal.usd
 ## Insights (Phase 7)
 
 - **Dashboard trends** section with week/month toggle
-- **Calorie line chart** with daily goal reference line
+- **Calorie line chart** with daily goal reference line and gaps on unlogged days
 - **Macro bar chart** for protein, carbs, fats, fiber
 - Summary stats: average calories, average protein, days logged
 - **Settings** profile & goals editor (name, units, all macro targets, body-stat calculator)
@@ -45,7 +47,7 @@ Get a free USDA API key at [fdc.nal.usda.gov/api-key-signup](https://fdc.nal.usd
 
 - **Installable** via `vite-plugin-pwa` — web manifest, theme color, and a branded icon set. The brand source is `public/pwa-icon.svg`; PNG icons (64/192/512, a maskable 512, a 180px Apple touch icon) and `favicon.ico` are generated from it with `@vite-pwa/assets-generator` (`npm run generate-pwa-assets`) so installs look crisp on every platform, including iOS. Use your browser's "Add to Home Screen" / "Install app".
 - **Service worker caching** (Workbox): the app shell is precached; runtime caching covers USDA (`NetworkFirst`), Open Food Facts (`StaleWhileRevalidate`), and Supabase REST reads (`NetworkFirst`). Auth and the AI edge function are never cached.
-- **Offline logging queue**: when you're offline (or a save can't reach the server), log entries are stored on-device (localStorage) and shown in the log marked "Saved offline · will sync". They sync automatically when connectivity returns.
+- **Offline logging queue**: food entries save on-device under your account first. They sync automatically when connectivity returns, and failed batches stay visible with a **Retry** action.
 - **Status bar**: a slim bar under the header shows offline state, pending-sync count, and an in-app **"new version available → Reload"** prompt when the service worker updates.
 - The service worker is disabled in `npm run dev`; test PWA behavior with `npm run build && npm run preview`.
 

@@ -3,7 +3,6 @@ import type {
   Food,
   FoodInsert,
   LogEntry,
-  LogEntryInsert,
   Macros,
   MealType,
   Profile,
@@ -30,17 +29,21 @@ export const queryKeys = {
   recipe: (id: string) => ['recipes', id] as const,
 }
 
+async function getSessionUserId(supabase: ReturnType<typeof getSupabase>): Promise<string | undefined> {
+  const { data: { session }, error } = await supabase.auth.getSession()
+  if (error) throw error
+  return session?.user.id
+}
+
 export async function fetchProfile(): Promise<Profile | null> {
   const supabase = getSupabase()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return null
+  const userId = await getSessionUserId(supabase)
+  if (!userId) return null
 
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
-    .eq('id', user.id)
+    .eq('id', userId)
     .single()
 
   if (error) throw error
@@ -137,28 +140,36 @@ export async function fetchLogEntriesInRange(
   return data ?? []
 }
 
-export async function createLogEntry(
-  entry: Omit<LogEntryInsert, 'user_id'>,
-): Promise<LogEntry> {
+export async function saveLogEntries(entries: LogEntry[]): Promise<void> {
   const supabase = getSupabase()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) throw new Error('Not authenticated')
+  const userId = await getSessionUserId(supabase)
+  if (!userId || entries.some((entry) => entry.user_id !== userId)) throw new Error('Sign in to sync this log')
 
-  const { data, error } = await supabase
+  // One statement commits the entire batch. Stable IDs preserve existing rows on retry.
+  const { error } = await supabase
     .from('log_entries')
-    .insert({ ...entry, user_id: user.id })
-    .select()
-    .single()
+    .upsert(entries, { onConflict: 'id', ignoreDuplicates: true })
 
   if (error) throw error
-  return data
 }
 
 export async function deleteLogEntry(id: string): Promise<void> {
   const supabase = getSupabase()
   const { error } = await supabase.from('log_entries').delete().eq('id', id)
+  if (error) throw error
+}
+
+export async function deleteMealEntries(userId: string, date: string, meal: MealType): Promise<void> {
+  const supabase = getSupabase()
+  if (!userId || await getSessionUserId(supabase) !== userId) throw new Error('Sign in to delete this meal.')
+
+  const { error } = await supabase
+    .from('log_entries')
+    .delete()
+    .eq('user_id', userId)
+    .eq('logged_date', date)
+    .eq('meal', meal)
+
   if (error) throw error
 }
 
@@ -235,12 +246,12 @@ export async function deleteWeightEntry(id: string): Promise<void> {
  * Delete all food log entries and weight logs for the current user.
  * Does not touch profile goals or the saved food library.
  */
-export async function resetLoggedData(): Promise<void> {
+export async function resetLoggedData(userId: string): Promise<void> {
   const supabase = getSupabase()
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) throw new Error('Not authenticated')
+  if (user?.id !== userId) throw new Error('Sign in again to reset your log')
 
   const [{ error: logError }, { error: weightError }] = await Promise.all([
     supabase.from('log_entries').delete().eq('user_id', user.id),

@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Trash2, X } from 'lucide-react'
-import { deleteLogEntry, MEAL_LABELS, MEAL_ORDER, queryKeys, updateLogEntry } from '@/lib/api'
+import { invalidateFoodLog } from '@/hooks/useLogEntries'
+import { deleteLogEntry, MEAL_LABELS, MEAL_ORDER, updateLogEntry } from '@/lib/api'
 import { amountFieldConfig, macrosPerUnit, scaleMacros } from '@/lib/macros'
 import type { LogEntry, MealType } from '@/types/database'
 import { formatMacro } from '@/types/food'
@@ -11,11 +12,9 @@ const inputClass =
 
 export function EditLogEntryModal({
   entry,
-  date,
   onClose,
 }: {
   entry: LogEntry
-  date: string
   onClose: () => void
 }) {
   const queryClient = useQueryClient()
@@ -29,8 +28,7 @@ export function EditLogEntryModal({
   const preview = scaleMacros(perUnit, qty)
 
   const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.logEntries(date) })
-    queryClient.invalidateQueries({ queryKey: queryKeys.dailyTotals(date) })
+    void invalidateFoodLog(queryClient)
   }
 
   const updateMutation = useMutation({

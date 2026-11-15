@@ -18,7 +18,7 @@ export function DateNavigator({
       <button
         type="button"
         onClick={() => onChange(shiftDate(date, -1))}
-        className="cursor-pointer rounded-lg p-2 text-muted transition-colors duration-200 hover:bg-accent hover:text-foreground"
+        className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-lg text-muted transition-colors duration-200 hover:bg-accent hover:text-foreground"
         aria-label="Previous day"
       >
         <ChevronLeft className="h-5 w-5" />
@@ -27,7 +27,7 @@ export function DateNavigator({
       <button
         type="button"
         onClick={() => setCalendarOpen((open) => !open)}
-        className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-1 text-center transition-colors duration-200 hover:bg-accent"
+        className="flex min-h-11 min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg px-2 py-1 text-center transition-colors duration-200 hover:bg-accent"
         aria-haspopup="dialog"
         aria-expanded={calendarOpen}
         aria-label="Open calendar to choose a date"
@@ -42,12 +42,25 @@ export function DateNavigator({
       <button
         type="button"
         onClick={() => onChange(shiftDate(date, 1))}
-        disabled={isToday}
-        className="cursor-pointer rounded-lg p-2 text-muted transition-colors duration-200 hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
+        className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-lg text-muted transition-colors duration-200 hover:bg-accent hover:text-foreground"
         aria-label="Next day"
       >
         <ChevronRight className="h-5 w-5" />
       </button>
+
+      {!isToday && (
+        <button
+          type="button"
+          onClick={() => {
+            onChange(toDateString())
+            setCalendarOpen(false)
+          }}
+          className="ml-1 min-h-11 shrink-0 cursor-pointer border-l border-border px-2 text-sm font-medium text-primary"
+          aria-label="Jump to today"
+        >
+          Today
+        </button>
+      )}
 
       {calendarOpen && (
         <CalendarPopover
@@ -67,16 +80,4 @@ function parseDisplayDate(dateStr: string): string {
     day: 'numeric',
     year: 'numeric',
   })
-}
-
-export function TodayButton({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="cursor-pointer text-sm font-medium text-primary transition-colors duration-200 hover:opacity-80"
-    >
-      Jump to today
-    </button>
-  )
 }

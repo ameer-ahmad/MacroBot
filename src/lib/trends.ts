@@ -5,7 +5,7 @@ import type { Macros } from '@/types/food'
 
 export type TrendRange = 7 | 30
 
-export interface DailyTrendPoint extends Macros {
+export type DailyTrendPoint = { [Key in keyof Macros]: number | null } & {
   date: string
   label: string
 }
@@ -49,14 +49,20 @@ function formatChartLabel(dateStr: string, days: TrendRange): string {
 export function buildTrendSeries(
   entries: LogEntry[],
   days: TrendRange,
+  end = toDateString(),
 ): DailyTrendPoint[] {
-  const end = toDateString()
   const points: DailyTrendPoint[] = []
 
   for (let i = days - 1; i >= 0; i--) {
     const date = shiftDate(end, -i)
     const dayEntries = entries.filter((e) => e.logged_date === date)
-    const totals = sumMacros(dayEntries)
+    const totals = dayEntries.length ? sumMacros(dayEntries) : {
+      calories: null,
+      protein_g: null,
+      carbs_g: null,
+      fats_g: null,
+      fiber_g: null,
+    }
 
     points.push({
       date,
@@ -94,9 +100,9 @@ export function buildTrendSummary(
   series: DailyTrendPoint[],
   days: TrendRange,
 ): TrendSummary {
-  const daysLogged = series.filter((d) => d.calories > 0).length
-  const totalCalories = series.reduce((sum, d) => sum + d.calories, 0)
-  const totalProtein = series.reduce((sum, d) => sum + d.protein_g, 0)
+  const daysLogged = series.filter((d) => d.calories !== null).length
+  const totalCalories = series.reduce((sum, d) => sum + (d.calories ?? 0), 0)
+  const totalProtein = series.reduce((sum, d) => sum + (d.protein_g ?? 0), 0)
 
   return {
     avgCalories: daysLogged > 0 ? Math.round(totalCalories / daysLogged) : 0,

@@ -17,6 +17,7 @@ import { BarcodeScanner } from '@/components/food/BarcodeScanner'
 import { FoodResultCard } from '@/components/food/FoodResultCard'
 import { RecipeResultCard } from '@/components/food/RecipeResultCard'
 import { AiAssistant } from '@/components/log/AiAssistant'
+import { PortionField } from '@/components/log/PortionField'
 import { useBarcodeLookup } from '@/hooks/useBarcodeLookup'
 import { useDebounce } from '@/hooks/useDebounce'
 import {
@@ -31,10 +32,11 @@ import {
   updateRecipe,
   type RecipeIngredientInput,
 } from '@/lib/api'
-import { createLogEntryQueued, logRecipeQueued } from '@/lib/offlineQueue'
+import { queueLogEntries, type PendingPayload } from '@/lib/offlineQueue'
 import { searchLoggableFoods } from '@/lib/foodSearch'
 import { amountFieldConfig, macrosForAmount, scaleMacros } from '@/lib/macros'
 import { fetchUsdaFood, isUsdaConfigured } from '@/lib/usda'
+import { useAuth } from '@/providers/AuthProvider'
 import type { MealType, RecipeWithIngredients } from '@/types/database'
 import type { FoodSearchResult, RecipeSearchResult } from '@/types/food'
 import { formatMacro } from '@/types/food'
@@ -74,6 +76,9 @@ interface DraftIngredient {
 
 const inputClass =
   'w-full rounded-xl border border-border bg-background px-3 py-2.5 text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20'
+const pickerActionClass =
+  'flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-border bg-background px-2.5 py-2 text-left text-xs font-medium text-foreground hover:border-primary hover:bg-accent disabled:opacity-50 sm:text-sm'
+const INITIAL_RECENT_COUNT = 4
 
 function newLocalId() {
   return crypto.randomUUID()
@@ -89,9 +94,11 @@ export function AddFoodFlow({
   onClose: () => void
 }) {
   const queryClient = useQueryClient()
+  const userId = useAuth().user?.id ?? ''
   const [step, setStep] = useState<Step>('search')
   const [meal, setMeal] = useState<MealType>(initialMeal)
   const [query, setQuery] = useState('')
+  const [showAllRecent, setShowAllRecent] = useState(false)
   const [scannerOpen, setScannerOpen] = useState(false)
   const [selectedFood, setSelectedFood] = useState<FoodSearchResult | null>(null)
   const [quantity, setQuantity] = useState('1')
@@ -136,13 +143,9 @@ export function AddFoodFlow({
   })
 
   const mutation = useMutation({
-    mutationFn: createLogEntryQueued,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.logEntries(date) })
-      queryClient.invalidateQueries({ queryKey: queryKeys.dailyTotals(date) })
-      queryClient.invalidateQueries({ queryKey: queryKeys.recentFoods })
-      onClose()
-    },
+    networkMode: 'always',
+    mutationFn: async (entries: PendingPayload[]) => queueLogEntries(userId, entries),
+    onSuccess: onClose,
     onError: (err) => setError(err instanceof Error ? err.message : 'Failed to add entry'),
   })
 
@@ -183,25 +186,6 @@ export function AddFoodFlow({
       setError(null)
     },
     onError: (err) => setError(err instanceof Error ? err.message : 'Failed to save recipe'),
-  })
-
-  const logRecipeMutation = useMutation({
-    mutationFn: async () => {
-      if (!selectedRecipe) throw new Error('No recipe selected')
-      return logRecipeQueued({
-        recipe: selectedRecipe,
-        date,
-        meal,
-        servings: Number(recipeLogServings) || 1,
-      })
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.logEntries(date) })
-      queryClient.invalidateQueries({ queryKey: queryKeys.dailyTotals(date) })
-      queryClient.invalidateQueries({ queryKey: queryKeys.recentFoods })
-      onClose()
-    },
-    onError: (err) => setError(err instanceof Error ? err.message : 'Failed to log recipe'),
   })
 
   const deleteRecipeMutation = useMutation({
@@ -280,7 +264,7 @@ export function AddFoodFlow({
         return
       }
       setSelectedRecipe(full)
-      setRecipeLogServings(String(full.servings || 1))
+      setRecipeLogServings('1')
       setMeal(initialMeal)
       setStep('configureRecipe')
     } catch (err) {
@@ -332,11 +316,10 @@ export function AddFoodFlow({
 
   function handleConfigureSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!selectedFood) return
+    if (!selectedFood || !configuredTotals) return
     setError(null)
 
-    const amount = Number(quantity) || selectedFood.servingSize || 1
-    const macros = macrosForAmount(selectedFood, amount)
+    const amount = Number(quantity)
 
     if (step === 'configureIngredient') {
       appendIngredient({
@@ -344,22 +327,22 @@ export function AddFoodFlow({
         name: selectedFood.name,
         quantity: amount,
         serving_unit: selectedFood.servingUnit,
-        ...macros,
+        ...configuredTotals,
       })
       setSelectedFood(null)
       setStep('recipe')
       return
     }
 
-    mutation.mutate({
+    mutation.mutate([{
       logged_date: date,
       meal,
       food_id: selectedFood.foodId ?? null,
       name: selectedFood.name,
       quantity: amount,
       serving_unit: selectedFood.servingUnit,
-      ...macros,
-    })
+      ...configuredTotals,
+    }])
   }
 
   function handleManualSubmit(e: React.FormEvent) {
@@ -371,17 +354,7 @@ export function AddFoodFlow({
       return
     }
 
-    const qty = Number(quantity) || 1
-    const macros = scaleMacros(
-      {
-        calories: Number(calories) || 0,
-        protein_g: Number(protein) || 0,
-        carbs_g: Number(carbs) || 0,
-        fats_g: Number(fats) || 0,
-        fiber_g: Number(fiber) || 0,
-      },
-      qty,
-    )
+    const qty = Number(quantity)
 
     if (step === 'manualIngredient') {
       appendIngredient({
@@ -389,7 +362,7 @@ export function AddFoodFlow({
         name: name.trim(),
         quantity: qty,
         serving_unit: 'serving',
-        ...macros,
+        ...manualTotals,
       })
       setName('')
       setCalories('')
@@ -402,15 +375,15 @@ export function AddFoodFlow({
       return
     }
 
-    mutation.mutate({
+    mutation.mutate([{
       logged_date: date,
       meal,
       food_id: null,
       name: name.trim(),
       quantity: qty,
       serving_unit: 'serving',
-      ...macros,
-    })
+      ...manualTotals,
+    }])
   }
 
   function handleSaveRecipe(e: React.FormEvent) {
@@ -449,13 +422,24 @@ export function AddFoodFlow({
   const recent = results?.recent ?? []
   const saved = results?.saved ?? []
   const usda = results?.usda ?? []
+  const isBrowsing = !query.trim()
+  const visibleRecent = isBrowsing && !showAllRecent ? recent.slice(0, INITIAL_RECENT_COUNT) : recent
   const hasFoodResults = recent.length > 0 || saved.length > 0 || usda.length > 0
-  const hasResults = recipes.length > 0 || hasFoodResults
+  const hasResults = (step === 'search' && recipes.length > 0) || hasFoodResults
   const draftTotals = sumMacros(draftIngredients)
-  const recipeLogPreview =
+  const configuredTotals = selectedFood ? macrosForAmount(selectedFood, Number(quantity)) : undefined
+  const manualTotals = scaleMacros({
+    calories: Number(calories) || 0,
+    protein_g: Number(protein) || 0,
+    carbs_g: Number(carbs) || 0,
+    fats_g: Number(fats) || 0,
+    fiber_g: Number(fiber) || 0,
+  }, Number(quantity))
+  const recipePortion =
     selectedRecipe && Number(recipeLogServings) > 0
-      ? sumMacros(scaleRecipeForLog(selectedRecipe, Number(recipeLogServings) || 1))
-      : null
+      ? scaleRecipeForLog(selectedRecipe, Number(recipeLogServings))
+      : []
+  const recipeLogPreview = sumMacros(recipePortion)
 
   const mealSelector = (
     <div>
@@ -466,8 +450,9 @@ export function AddFoodFlow({
             key={m}
             type="button"
             onClick={() => setMeal(m)}
+            aria-pressed={meal === m}
             className={[
-              'cursor-pointer rounded-xl border px-3 py-2 text-sm font-medium transition-colors duration-200',
+              'min-h-11 cursor-pointer rounded-xl border px-3 py-2 text-sm font-medium transition-colors duration-200',
               meal === m
                 ? 'border-primary bg-accent text-primary'
                 : 'border-border text-muted hover:text-foreground',
@@ -564,59 +549,24 @@ export function AddFoodFlow({
 
         {(step === 'search' || step === 'pickIngredient') && (
           <div className="flex flex-1 flex-col overflow-hidden">
-            <div className="space-y-3 px-5 py-4">
-              <div className={`grid gap-2 ${step === 'search' ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'}`}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    clearError()
-                    setScannerOpen(true)
-                  }}
-                  disabled={barcodeLoading}
-                  className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-primary bg-accent px-3 py-2.5 text-sm font-medium text-primary transition-colors duration-200 hover:bg-primary hover:text-primary-foreground disabled:opacity-50"
-                >
-                  {barcodeLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                  ) : (
-                    <Camera className="h-4 w-4" aria-hidden="true" />
-                  )}
-                  Scan
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setError(null)
-                    setStep(step === 'pickIngredient' ? 'aiIngredient' : 'ai')
-                  }}
-                  className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-border px-3 py-2.5 text-sm font-medium text-foreground transition-colors duration-200 hover:border-primary hover:bg-accent"
-                >
-                  <Sparkles className="h-4 w-4" aria-hidden="true" />
-                  AI
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setError(null)
-                    setQuantity('1')
-                    setStep(step === 'pickIngredient' ? 'manualIngredient' : 'manual')
-                  }}
-                  className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-border px-3 py-2.5 text-sm font-medium text-foreground transition-colors duration-200 hover:border-primary hover:bg-accent"
-                >
-                  <PencilLine className="h-4 w-4" aria-hidden="true" />
-                  Manual
-                </button>
-                {step === 'search' && (
-                  <button
-                    type="button"
-                    onClick={startNewRecipe}
-                    className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-border px-3 py-2.5 text-sm font-medium text-foreground transition-colors duration-200 hover:border-primary hover:bg-accent"
-                  >
-                    <BookOpen className="h-4 w-4" aria-hidden="true" />
-                    Recipe
-                  </button>
-                )}
+            <div className="px-4 pt-3 pb-2 sm:px-5">
+              <div className="relative">
+                <Search
+                  className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted"
+                  aria-hidden="true"
+                />
+                <input
+                  type="search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={step === 'pickIngredient' ? 'Search ingredients…' : 'Search foods or recipes…'}
+                  className="min-h-11 w-full rounded-xl border border-border bg-background py-2.5 pr-4 pl-10 text-base text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  aria-label={step === 'pickIngredient' ? 'Search ingredients' : 'Search foods'}
+                />
               </div>
+            </div>
 
+            <div className="flex-1 space-y-4 overflow-y-auto px-4 pt-1 pb-4 sm:px-5">
               {barcodeError && lastBarcode && (
                 <BarcodeNotFound
                   barcode={lastBarcode}
@@ -637,31 +587,31 @@ export function AddFoodFlow({
                 </p>
               )}
 
-              <div className="relative">
-                <Search
-                  className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted"
-                  aria-hidden="true"
-                />
-                <input
-                  type="search"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder={
-                    step === 'pickIngredient'
-                      ? 'Search ingredients…'
-                      : 'Search recipes, foods, or USDA…'
-                  }
-                  className="w-full rounded-xl border border-border bg-background py-2.5 pl-10 pr-4 text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  aria-label="Search foods"
-                />
-              </div>
-            </div>
-
-            <div className="flex-1 space-y-4 overflow-y-auto px-5 pb-5">
               {(isFetching || resolvingFood) && (
                 <div className="flex items-center justify-center py-4">
                   <Loader2 className="h-5 w-5 animate-spin text-muted" aria-label="Searching" />
                 </div>
+              )}
+
+              {visibleRecent.length > 0 && (
+                <section className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <h4 className="text-sm font-semibold text-foreground">{isBrowsing ? 'Recently logged' : 'From your history'}</h4>
+                    {isBrowsing && recent.length > INITIAL_RECENT_COUNT && (
+                      <button
+                        type="button"
+                        aria-expanded={showAllRecent}
+                        onClick={() => setShowAllRecent(!showAllRecent)}
+                        className="min-h-10 cursor-pointer rounded-lg px-2 text-xs font-semibold text-primary hover:bg-accent"
+                      >
+                        {showAllRecent ? 'Show fewer' : 'Show all recent'}
+                      </button>
+                    )}
+                  </div>
+                  {visibleRecent.map((food) => (
+                    <FoodResultCard key={food.key} food={food} onSelect={selectFood} />
+                  ))}
+                </section>
               )}
 
               {step === 'search' && recipes.length > 0 && (
@@ -681,17 +631,6 @@ export function AddFoodFlow({
                         }
                       }}
                     />
-                  ))}
-                </section>
-              )}
-
-              {recent.length > 0 && (
-                <section className="space-y-2">
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted">
-                    {query.trim() ? 'From your history' : 'Recently logged'}
-                  </h4>
-                  {recent.map((food) => (
-                    <FoodResultCard key={food.key} food={food} onSelect={selectFood} />
                   ))}
                 </section>
               )}
@@ -725,8 +664,8 @@ export function AddFoodFlow({
                     : query.trim().length === 1
                       ? 'Keep typing to search…'
                       : step === 'pickIngredient'
-                        ? 'Search for an ingredient, or scan / enter manually.'
-                        : 'Search recipes and foods, create a recipe, or scan a barcode.'}
+                        ? 'Search or add an ingredient below.'
+                        : 'Search for a food or choose an option below.'}
                 </p>
               )}
 
@@ -736,10 +675,58 @@ export function AddFoodFlow({
                 </p>
               )}
             </div>
+
+            <div className="grid grid-cols-2 gap-2 border-t border-border px-4 py-3 sm:px-5">
+              <button
+                type="button"
+                onClick={() => {
+                  clearError()
+                  setScannerOpen(true)
+                }}
+                disabled={barcodeLoading}
+                className={pickerActionClass}
+              >
+                {barcodeLoading ? (
+                  <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" aria-hidden="true" />
+                ) : (
+                  <Camera className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                )}
+                Scan barcode
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null)
+                  setStep(step === 'pickIngredient' ? 'aiIngredient' : 'ai')
+                }}
+                className={pickerActionClass}
+              >
+                <Sparkles className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                Describe or photograph {step === 'pickIngredient' ? 'ingredients' : 'a meal'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null)
+                  setQuantity('1')
+                  setStep(step === 'pickIngredient' ? 'manualIngredient' : 'manual')
+                }}
+                className={pickerActionClass}
+              >
+                <PencilLine className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                Manual entry
+              </button>
+              {step === 'search' && (
+                <button type="button" onClick={startNewRecipe} className={pickerActionClass}>
+                  <BookOpen className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                  New recipe
+                </button>
+              )}
+            </div>
           </div>
         )}
 
-        {(step === 'configure' || step === 'configureIngredient') && selectedFood && (
+        {(step === 'configure' || step === 'configureIngredient') && selectedFood && configuredTotals && (
           <form onSubmit={handleConfigureSubmit} className="flex flex-1 flex-col overflow-hidden">
             <div className="space-y-4 overflow-y-auto px-5 py-4">
               {error && (
@@ -754,35 +741,20 @@ export function AddFoodFlow({
                   <p className="text-xs text-muted">{selectedFood.brand}</p>
                 )}
                 <p className="mt-1 text-xs text-muted">
-                  {formatMacro(selectedFood.calories, 'kcal')} per {selectedFood.servingSize}
+                  {formatMacro(selectedFood.calories, 'kcal')} per {selectedFood.servingSize}{' '}
                   {selectedFood.servingUnit}
                 </p>
               </div>
 
+              <PortionField
+                label={amountFieldConfig(selectedFood.servingUnit).label}
+                amount={quantity}
+                onChange={setQuantity}
+                servingSize={selectedFood.servingSize || 1}
+                totals={configuredTotals}
+              />
+
               {step === 'configure' && mealSelector}
-
-              {(() => {
-                const field = amountFieldConfig(selectedFood.servingUnit)
-                return (
-                  <label className="block text-sm">
-                    <span className="font-medium text-foreground">{field.label}</span>
-                    <input
-                      type="number"
-                      min={field.min}
-                      step={field.step}
-                      value={quantity}
-                      onChange={(e) => setQuantity(e.target.value)}
-                      className={`mt-1 ${inputClass}`}
-                      required
-                    />
-                    <span className="mt-1 block text-xs text-muted">
-                      Nutrition scales with the amount you enter.
-                    </span>
-                  </label>
-                )
-              })()}
-
-              <ConfigurePreview food={selectedFood} amount={Number(quantity) || 0} />
             </div>
 
             <div className="border-t border-border px-5 py-4">
@@ -806,7 +778,7 @@ export function AddFoodFlow({
             onSubmit={(e) => {
               e.preventDefault()
               setError(null)
-              logRecipeMutation.mutate()
+              mutation.mutate(recipePortion.map((item) => ({ ...item, meal, logged_date: date })))
             }}
             className="flex flex-1 flex-col overflow-hidden"
           >
@@ -821,45 +793,27 @@ export function AddFoodFlow({
                 <p className="font-medium text-foreground">{selectedRecipe.name}</p>
                 <p className="mt-1 text-xs text-muted">
                   {selectedRecipe.ingredients.length} ingredient
-                  {selectedRecipe.ingredients.length === 1 ? '' : 's'} · logs as separate entries
+                  {selectedRecipe.ingredients.length === 1 ? '' : 's'} · Makes {selectedRecipe.servings}{' '}
+                  {Number(selectedRecipe.servings) === 1 ? 'serving' : 'servings'}
                 </p>
               </div>
 
+              <PortionField
+                label="Servings to log"
+                amount={recipeLogServings}
+                onChange={setRecipeLogServings}
+                minimum="0.25"
+                step="0.25"
+                totals={recipeLogPreview}
+              />
+
               {mealSelector}
 
-              <label className="block text-sm">
-                <span className="font-medium text-foreground">Servings</span>
-                <input
-                  type="number"
-                  min="0.25"
-                  step="0.25"
-                  value={recipeLogServings}
-                  onChange={(e) => setRecipeLogServings(e.target.value)}
-                  className={`mt-1 ${inputClass}`}
-                  required
-                />
-                <span className="mt-1 block text-xs text-muted">
-                  Recipe is defined as {selectedRecipe.servings} serving
-                  {Number(selectedRecipe.servings) === 1 ? '' : 's'}; amounts scale from that.
-                </span>
-              </label>
-
-              {recipeLogPreview && (
-                <div className="rounded-xl border border-border bg-background px-3 py-2.5 text-sm">
-                  <span className="text-muted">Total: </span>
-                  <span className="font-medium text-foreground">
-                    {formatMacro(recipeLogPreview.calories, 'kcal')} · P{' '}
-                    {recipeLogPreview.protein_g}g · C {recipeLogPreview.carbs_g}g · F{' '}
-                    {recipeLogPreview.fats_g}g · Fiber {recipeLogPreview.fiber_g}g
-                  </span>
-                </div>
-              )}
-
               <ul className="space-y-1 text-xs text-muted">
-                {scaleRecipeForLog(selectedRecipe, Number(recipeLogServings) || 1).map(
+                {recipePortion.map(
                   (ing, i) => (
                     <li key={`${ing.name}-${i}`}>
-                      {ing.quantity}
+                      {ing.quantity}{' '}
                       {ing.serving_unit} {ing.name} · {formatMacro(ing.calories, 'kcal')}
                     </li>
                   ),
@@ -870,12 +824,10 @@ export function AddFoodFlow({
             <div className="border-t border-border px-5 py-4">
               <button
                 type="submit"
-                disabled={logRecipeMutation.isPending}
+                disabled={mutation.isPending || recipePortion.length === 0}
                 className="w-full cursor-pointer rounded-xl bg-primary px-4 py-3 font-semibold text-primary-foreground disabled:opacity-50"
               >
-                {logRecipeMutation.isPending
-                  ? 'Adding…'
-                  : `Log ${selectedRecipe.ingredients.length} ingredients`}
+                {mutation.isPending ? 'Adding…' : 'Log recipe'}
               </button>
             </div>
           </form>
@@ -890,8 +842,6 @@ export function AddFoodFlow({
                 </p>
               )}
 
-              {step === 'manual' && mealSelector}
-
               <label className="block text-sm">
                 <span className="font-medium text-foreground">Name</span>
                 <input
@@ -902,41 +852,41 @@ export function AddFoodFlow({
                 />
               </label>
 
-              <label className="block text-sm">
-                <span className="font-medium text-foreground">Quantity (servings)</span>
-                <input
-                  type="number"
-                  min="0.25"
-                  step="0.25"
-                  value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
-                  className={`mt-1 ${inputClass}`}
-                  required
-                />
-              </label>
+              <fieldset className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                <legend className="mb-2 text-sm font-semibold text-foreground">Nutrition per serving</legend>
+                {(
+                  [
+                    ['Calories (kcal)', calories, setCalories],
+                    ['Protein (g)', protein, setProtein],
+                    ['Carbs (g)', carbs, setCarbs],
+                    ['Fats (g)', fats, setFats],
+                    ['Fiber (g)', fiber, setFiber],
+                  ] as const
+                ).map(([label, value, setter]) => (
+                  <label key={label} className="block text-sm">
+                    <span className="font-medium text-foreground">{label}</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="any"
+                      value={value}
+                      onChange={(e) => setter(e.target.value)}
+                      className={`mt-1 ${inputClass}`}
+                    />
+                  </label>
+                ))}
+              </fieldset>
 
-              {(
-                [
-                  ['Calories (kcal)', calories, setCalories],
-                  ['Protein (g)', protein, setProtein],
-                  ['Carbs (g)', carbs, setCarbs],
-                  ['Fats (g)', fats, setFats],
-                  ['Fiber (g)', fiber, setFiber],
-                ] as const
-              ).map(([label, value, setter]) => (
-                <label key={label} className="block text-sm">
-                  <span className="font-medium text-foreground">{label}</span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="any"
-                    value={value}
-                    onChange={(e) => setter(e.target.value)}
-                    className={`mt-1 ${inputClass}`}
-                  />
-                </label>
-              ))}
-              <p className="text-xs text-muted">Macros are per serving; quantity multiplies totals.</p>
+              <PortionField
+                label="Quantity (servings)"
+                amount={quantity}
+                onChange={setQuantity}
+                minimum="0.25"
+                step="0.25"
+                totals={manualTotals}
+              />
+
+              {step === 'manual' && mealSelector}
             </div>
 
             <div className="border-t border-border px-5 py-4">
@@ -1126,20 +1076,6 @@ export function AddFoodFlow({
       {scannerOpen && (
         <BarcodeScanner onScan={handleScan} onClose={() => setScannerOpen(false)} />
       )}
-    </div>
-  )
-}
-
-function ConfigurePreview({ food, amount }: { food: FoodSearchResult; amount: number }) {
-  const totals = macrosForAmount(food, amount)
-
-  return (
-    <div className="rounded-xl border border-border bg-background px-3 py-2.5 text-sm">
-      <span className="text-muted">Total: </span>
-      <span className="font-medium text-foreground">
-        {formatMacro(totals.calories, 'kcal')} · P {totals.protein_g}g · C {totals.carbs_g}g · F{' '}
-        {totals.fats_g}g · Fiber {totals.fiber_g}g
-      </span>
     </div>
   )
 }

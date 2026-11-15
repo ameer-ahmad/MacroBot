@@ -9,5 +9,6 @@ export function useProfile() {
     queryKey: queryKeys.profile,
     queryFn: fetchProfile,
     enabled: isAuthenticated,
+    networkMode: 'always',
   })
 }

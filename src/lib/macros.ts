@@ -150,3 +150,10 @@ export function macroProgress(current: number, goal: number): number {
 export function macroRemaining(current: number, goal: number): number {
   return Math.max(0, goal - current)
 }
+
+export function calorieBalanceLabel(calories: number, goal: number): string {
+  const balance = Math.round(calories) - Math.round(goal)
+  if (balance === 0) return 'At calorie goal'
+  const amount = Math.abs(balance).toLocaleString()
+  return balance > 0 ? `${amount} kcal over goal` : `${amount} kcal remaining`
+}
