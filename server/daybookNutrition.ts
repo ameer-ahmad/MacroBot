@@ -1,8 +1,8 @@
 import { createHash, timingSafeEqual } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
-import { sumMacros } from '../src/lib/sumMacros.ts'
-import { roundMacro } from '../src/types/food.ts'
-import type { Database, Macros } from '../src/types/database.ts'
+import { sumMacros } from '../src/lib/sumMacros.js'
+import { roundMacro } from '../src/types/food.js'
+import type { Database, Macros } from '../src/types/database.js'
 
 const TIMEZONE = 'America/Toronto'
 const MAX_DAYS = 366

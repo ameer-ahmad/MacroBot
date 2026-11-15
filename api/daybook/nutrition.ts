@@ -1,3 +1,3 @@
-import { daybookNutrition } from '../../server/daybookNutrition.ts'
+import { daybookNutrition } from '../../server/daybookNutrition.js'
 
 export default { fetch: daybookNutrition }
