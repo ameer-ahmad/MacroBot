@@ -1,6 +1,6 @@
-import type { FoodSource } from '@/types/database'
+import type { FoodSource } from './database.ts'
 
-export type { Macros } from '@/types/database'
+export type { Macros } from './database.ts'
 
 /** Normalized food shape shared across USDA, Open Food Facts, and the saved library. */
 export interface FoodSearchResult {

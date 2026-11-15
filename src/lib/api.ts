@@ -3,7 +3,6 @@ import type {
   Food,
   FoodInsert,
   LogEntry,
-  Macros,
   MealType,
   Profile,
   ProfileUpdate,
@@ -13,6 +12,8 @@ import type {
   RecipeWithIngredients,
   WeightEntry,
 } from '@/types/database'
+
+export { sumMacros } from './sumMacros'
 
 export const queryKeys = {
   profile: ['profile'] as const,
@@ -479,19 +480,6 @@ export function scaleRecipeForLog(
     fats_g: Math.round(Number(ing.fats_g) * factor * 10) / 10,
     fiber_g: Math.round(Number(ing.fiber_g) * factor * 10) / 10,
   }))
-}
-
-export function sumMacros(entries: Pick<LogEntry | RecipeIngredient, keyof Macros>[]) {
-  return entries.reduce(
-    (totals, entry) => ({
-      calories: totals.calories + Number(entry.calories),
-      protein_g: totals.protein_g + Number(entry.protein_g),
-      carbs_g: totals.carbs_g + Number(entry.carbs_g),
-      fats_g: totals.fats_g + Number(entry.fats_g),
-      fiber_g: totals.fiber_g + Number(entry.fiber_g),
-    }),
-    { calories: 0, protein_g: 0, carbs_g: 0, fats_g: 0, fiber_g: 0 },
-  )
 }
 
 export const MEAL_ORDER: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack']

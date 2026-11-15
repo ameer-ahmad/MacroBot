@@ -135,6 +135,29 @@ payload size and cost. Until the function is deployed, the rest of the app
 | `VITE_USDA_API_KEY` | USDA FoodData Central API key |
 | `OPENAI_API_KEY` | OpenAI key — set as a **Supabase function secret**, not a `VITE_` var (see AI features setup) |
 
+## Daybook nutrition API
+
+```text
+GET /api/daybook/nutrition?from=2026-11-01&to=2026-11-14
+```
+
+1. In the MacroBot Supabase project, copy your account's UUID from **Authentication → Users**. Copy the project URL and a Supabase secret key from the same project's API settings.
+2. Set these variables in the MacroBot host's server-side environment. Use the Functions scope on Netlify when available. [Vercel environment settings](https://vercel.com/docs/environment-variables) · [Netlify function environment settings](https://docs.netlify.com/build/functions/environment-variables/)
+
+   | Variable | Value |
+   |----------|-------|
+   | `DAYBOOK_USER_ID` | Your MacroBot account UUID. Both database reads are filtered to this account. |
+   | `DAYBOOK_API_TOKEN` | A strong, randomly generated secret shared with the Daybook server. |
+   | `SUPABASE_URL` | The URL of the Supabase project used by MacroBot. |
+   | `SUPABASE_SECRET_KEY` | The Supabase secret API key. Keep this on MacroBot's server because it bypasses RLS. |
+
+3. Deploy or redeploy MacroBot with its Vercel or Netlify configuration. The existing food and weight migrations provide the tables. A static-only deployment or the plain Vite dev server cannot serve this endpoint.
+4. Call the HTTPS URL on MacroBot's domain from the Daybook server with `Authorization: Bearer <token>`. Store the shared secret in Daybook's server environment. A GET without a valid header should return `401`.
+
+The response contains `timezone: "America/Toronto"` and an oldest-first `days` array with `date`, `weightKg`, `caloriesKcal`, and `proteinG`. Both dates are inclusive and each request may span up to 366 days. It uses the stored `logged_date` values. MacroBot derives these from the device's local calendar or the date selected in the food log, so an entry made on a device outside Toronto keeps its saved date.
+
+Weight is stored in kilograms after conversion at entry time, and each day's most recent saved weight overwrites the previous one. Food totals sum the portion-adjusted kilocalories and grams of protein saved in synced log entries. A day without a weigh-in has a null weight, and a day without synced food entries has null intake totals. Recorded zeros remain zero. Some logging flows store unavailable nutrition values as zero, so those values are indistinguishable from measured zeros. Pending offline food logs appear after syncing.
+
 ## Testing
 
 Unit tests (Vitest) cover the pure logic: macro scaling/units, the BMR/TDEE/macro
@@ -148,7 +171,7 @@ npm run test:watch
 
 ## Deployment
 
-The app is a static SPA + a Supabase Edge Function.
+The app is a static SPA with a Supabase Edge Function for AI and an optional hosting function for Daybook.
 
 1. **Frontend** — deploy the Vite build (output: `dist/`) to any static host. Config
    files are included for the two common options:
